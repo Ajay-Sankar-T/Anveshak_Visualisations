@@ -1,0 +1,1084 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Q4 — Bogie & Triangular Wheels</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=DM+Serif+Display&display=swap');
+
+  :root {
+    --bg: #0d0e0f;
+    --bg2: #141517;
+    --bg3: #1c1e21;
+    --border: rgba(255,255,255,0.07);
+    --border2: rgba(255,255,255,0.14);
+    --text: #e8e6e0;
+    --muted: #6b6a66;
+    --accent: #c8f060;
+    --accent2: #60c8f0;
+    --warn: #f0a060;
+    --danger: #f06060;
+    --ok: #60f090;
+    --mono: 'JetBrains Mono', monospace;
+    --serif: 'DM Serif Display', serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 13px;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  .app {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    grid-template-rows: auto 1fr;
+    height: 100vh;
+    gap: 0;
+  }
+
+  /* HEADER */
+  .header {
+    grid-column: 1 / -1;
+    padding: 18px 24px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: baseline;
+    gap: 24px;
+    background: var(--bg);
+  }
+  .header-title {
+    font-family: var(--serif);
+    font-size: 22px;
+    color: var(--text);
+    letter-spacing: -0.3px;
+  }
+  .header-sub {
+    color: var(--muted);
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+  .tab-switch {
+    margin-left: auto;
+    display: flex;
+    gap: 2px;
+    background: var(--bg3);
+    padding: 3px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+  .tab-btn {
+    padding: 6px 16px;
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    border-radius: 6px;
+    transition: all 0.2s;
+  }
+  .tab-btn.active {
+    background: var(--bg2);
+    color: var(--text);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+  }
+
+  /* SIDEBAR */
+  .sidebar {
+    border-right: 1px solid var(--border);
+    background: var(--bg2);
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .section-label {
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+
+  .ctrl-group { display: flex; flex-direction: column; gap: 14px; }
+
+  .ctrl {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .ctrl-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
+  .ctrl-name {
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .ctrl-val {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--accent);
+    letter-spacing: -0.5px;
+  }
+  input[type=range] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 2px;
+    background: var(--bg3);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: var(--accent);
+    cursor: pointer;
+    box-shadow: 0 0 0 3px rgba(200,240,96,0.15);
+    transition: box-shadow 0.2s;
+  }
+  input[type=range]::-webkit-slider-thumb:hover {
+    box-shadow: 0 0 0 5px rgba(200,240,96,0.25);
+  }
+
+  .divider {
+    border: none;
+    border-top: 1px solid var(--border);
+  }
+
+  /* METRICS */
+  .metrics { display: flex; flex-direction: column; gap: 8px; }
+
+  .metric-card {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    transition: border-color 0.3s;
+  }
+  .metric-card.ok { border-color: rgba(96,240,144,0.3); }
+  .metric-card.warn { border-color: rgba(240,160,96,0.3); }
+  .metric-card.danger { border-color: rgba(240,96,96,0.3); }
+
+  .metric-label {
+    font-size: 10px;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .metric-val {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -1px;
+    color: var(--text);
+  }
+  .metric-val.ok { color: var(--ok); }
+  .metric-val.warn { color: var(--warn); }
+  .metric-val.danger { color: var(--danger); }
+  .metric-note {
+    font-size: 10px;
+    color: var(--muted);
+    line-height: 1.4;
+  }
+
+  /* FORMULA */
+  .formula-box {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+  .formula-box .f-accent { color: var(--accent2); }
+  .formula-box .f-val { color: var(--accent); font-weight: 700; }
+
+  /* CANVAS AREA */
+  .canvas-area {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    background: var(--bg);
+  }
+
+  canvas {
+    display: block;
+    max-width: 100%;
+    max-height: 100%;
+  }
+
+  /* STATUS BADGE */
+  .status-badge {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    border: 1px solid;
+    transition: all 0.3s;
+  }
+  .status-badge.ok { background: rgba(96,240,144,0.1); color: var(--ok); border-color: rgba(96,240,144,0.3); }
+  .status-badge.danger { background: rgba(240,96,96,0.1); color: var(--danger); border-color: rgba(240,96,96,0.3); }
+
+  /* ANIMATION CONTROL */
+  .anim-ctrl {
+    position: absolute;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .anim-btn {
+    padding: 8px 20px;
+    background: var(--bg3);
+    border: 1px solid var(--border2);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.5px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-transform: uppercase;
+  }
+  .anim-btn:hover { background: var(--bg2); border-color: var(--accent); color: var(--accent); }
+  .anim-btn.active { background: rgba(200,240,96,0.1); border-color: var(--accent); color: var(--accent); }
+
+  .panel { display: none; }
+  .panel.active { display: contents; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="header">
+    <span class="header-title">Mechanism Geometry</span>
+    <span class="header-sub">Question 4 — Interactive</span>
+    <div class="tab-switch">
+      <button class="tab-btn active" id="tab-bogie" onclick="switchTab('bogie')">4.1 Bogie</button>
+      <button class="tab-btn" id="tab-tri" onclick="switchTab('tri')">4.2 Triangle Wheels</button>
+    </div>
+  </div>
+
+  <!-- ===== BOGIE PANEL ===== -->
+  <div class="panel active" id="panel-bogie">
+    <div class="sidebar">
+      <div>
+        <div class="section-label">Parameters</div>
+        <div class="ctrl-group">
+          <div class="ctrl">
+            <div class="ctrl-top"><span class="ctrl-name">Wheel radius r</span><span class="ctrl-val" id="r-val">40</span></div>
+            <input type="range" min="15" max="80" value="40" step="1" oninput="bogieUpdate();" id="r-s">
+          </div>
+          <div class="ctrl">
+            <div class="ctrl-top"><span class="ctrl-name">Bogie width b</span><span class="ctrl-val" id="b-val">120</span></div>
+            <input type="range" min="60" max="220" value="120" step="1" oninput="bogieUpdate();" id="b-s">
+          </div>
+          <div class="ctrl">
+            <div class="ctrl-top"><span class="ctrl-name">Step height h</span><span class="ctrl-val" id="h-val">20</span></div>
+            <input type="range" min="2" max="60" value="20" step="1" oninput="bogieUpdate();" id="h-s">
+          </div>
+          <div class="ctrl">
+            <div class="ctrl-top"><span class="ctrl-name">V-angle φ (°)</span><span class="ctrl-val" id="phi-val">60°</span></div>
+            <input type="range" min="5" max="175" value="60" step="1" oninput="bogieUpdate();" id="phi-s">
+          </div>
+        </div>
+      </div>
+
+      <hr class="divider">
+
+      <div>
+        <div class="section-label">Results</div>
+        <div class="metrics">
+          <div class="metric-card" id="mc-phimax">
+            <div class="metric-label">φ_max — max safe angle</div>
+            <div class="metric-val" id="mv-phimax">—</div>
+            <div class="metric-note">= 2 arctan((b − √(2rh−h²)) / (r−h))</div>
+          </div>
+          <div class="metric-card" id="mc-ymin">
+            <div class="metric-label">y_min — min apex height</div>
+            <div class="metric-val" id="mv-ymin">—</div>
+            <div class="metric-note">= r + (b/2)·(r−h)/(b−√(2rh−h²))</div>
+          </div>
+          <div class="metric-card" id="mc-yapex">
+            <div class="metric-label">Current apex height y</div>
+            <div class="metric-val" id="mv-yapex">—</div>
+            <div class="metric-note" id="mn-yapex">= r + (b/2)·cot(φ/2)</div>
+          </div>
+        </div>
+      </div>
+
+      <hr class="divider">
+
+      <div class="formula-box">
+        <div>Climbing condition:</div>
+        <div><span class="f-accent">φ</span> ≤ <span class="f-accent">φ_max</span> and <span class="f-accent">y</span> ≥ <span class="f-accent">y_min</span></div>
+        <br>
+        <div>Front wheel hits corner at:</div>
+        <div>x<sub>c</sub> = <span class="f-val" id="xc-val">—</span>, y<sub>c</sub> = <span class="f-val" id="yc-val">—</span></div>
+        <br>
+        <div>Rear arm length L = b / (2sin φ/2)</div>
+        <div>= <span class="f-val" id="L-val">—</span></div>
+      </div>
+
+      <div>
+        <button class="anim-btn" id="bogie-anim-btn" onclick="toggleBogieAnim()" style="width:100%">▶ Animate Climb</button>
+      </div>
+    </div>
+
+    <div class="canvas-area" id="bogie-canvas-area">
+      <canvas id="bogie-canvas"></canvas>
+      <div class="status-badge ok" id="bogie-badge">CLEAR</div>
+    </div>
+  </div>
+
+  <!-- ===== TRI PANEL ===== -->
+  <div class="panel" id="panel-tri">
+    <div class="sidebar">
+      <div>
+        <div class="section-label">Parameters</div>
+        <div class="ctrl-group">
+          <div class="ctrl">
+            <div class="ctrl-top"><span class="ctrl-name">Triangle side s</span><span class="ctrl-val" id="s-val">100</span></div>
+            <input type="range" min="40" max="180" value="100" step="1" oninput="triUpdate();" id="s-s">
+          </div>
+          <div class="ctrl">
+            <div class="ctrl-top"><span class="ctrl-name">Axle height H</span><span class="ctrl-val" id="H-val">120</span></div>
+            <input type="range" min="40" max="200" value="120" step="1" oninput="triUpdate();" id="H-s">
+          </div>
+          <div class="ctrl">
+            <div class="ctrl-top"><span class="ctrl-name">Pivot angle φ (°)</span><span class="ctrl-val" id="pvt-val">0°</span></div>
+            <input type="range" min="0" max="120" value="0" step="1" oninput="triUpdate();" id="pvt-s">
+          </div>
+        </div>
+      </div>
+
+      <hr class="divider">
+
+      <div>
+        <div class="section-label">Geometry</div>
+        <div class="metrics">
+          <div class="metric-card">
+            <div class="metric-label">R_v = s/√3 (centroid→vertex)</div>
+            <div class="metric-val" id="mv-Rv">—</div>
+            <div class="metric-note">Distance from axle to corner (pivot radius)</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">R_s = s/(2√3) (centroid→side)</div>
+            <div class="metric-val" id="mv-Rs">—</div>
+            <div class="metric-note">Min axle-to-contact distance</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">Centroid height above pivot</div>
+            <div class="metric-val ok" id="mv-ch">—</div>
+            <div class="metric-note">R_v · sin(30° + φ)</div>
+          </div>
+          <div class="metric-card" id="mc-road">
+            <div class="metric-label">Road height at contact</div>
+            <div class="metric-val" id="mv-road">—</div>
+            <div class="metric-note">H − R_v · sin(30° + φ)</div>
+          </div>
+          <div class="metric-card ok">
+            <div class="metric-label">Axle check (= H always)</div>
+            <div class="metric-val ok" id="mv-check">—</div>
+            <div class="metric-note">road + centroid height = H ✓</div>
+          </div>
+        </div>
+      </div>
+
+      <hr class="divider">
+
+      <div class="formula-box">
+        <div>Road profile (one period, 0 ≤ x ≤ s):</div>
+        <div style="margin-top:4px"><span class="f-accent">y_road</span>(x) = H − √(s²/3 − (x − s/2)²)</div>
+        <br>
+        <div>Radius of arc = <span class="f-accent">R_v</span> = <span class="f-val" id="Rv-formula">—</span></div>
+        <div>Repeated periodically</div>
+      </div>
+
+      <div>
+        <button class="anim-btn" id="tri-anim-btn" onclick="toggleTriAnim()" style="width:100%">▶ Animate Roll</button>
+      </div>
+    </div>
+
+    <div class="canvas-area" id="tri-canvas-area">
+      <canvas id="tri-canvas"></canvas>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ===================== UTILITIES =====================
+const PI = Math.PI;
+const sin = Math.sin, cos = Math.cos, tan = Math.tan, atan2 = Math.atan2, sqrt = Math.sqrt;
+
+function toRad(d) { return d * PI / 180; }
+function toDeg(r) { return r * 180 / PI; }
+
+function resizeCanvas(canvas, area) {
+  const dpr = window.devicePixelRatio || 1;
+  const W = area.clientWidth;
+  const H = area.clientHeight;
+  canvas.width = W * dpr;
+  canvas.height = H * dpr;
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  return { ctx, W, H };
+}
+
+// Colors
+const C = {
+  bg: '#0d0e0f',
+  grid: 'rgba(255,255,255,0.04)',
+  ground: '#1a1b1d',
+  groundStroke: 'rgba(255,255,255,0.12)',
+  step: '#212326',
+  stepStroke: 'rgba(255,255,255,0.18)',
+  wheel: '#534ab7',
+  wheelFill: 'rgba(83,74,183,0.12)',
+  wheelHL: '#7f77dd',
+  arm: '#c8f060',
+  armFill: 'rgba(200,240,96,0.06)',
+  apex: '#c8f060',
+  apexWarn: '#f0a060',
+  apexDanger: '#f06060',
+  corner: '#60c8f0',
+  road: '#1c1e21',
+  roadStroke: 'rgba(96,200,240,0.5)',
+  triWheel: '#534ab7',
+  triFill: 'rgba(83,74,183,0.15)',
+  triHL: '#7f77dd',
+  axle: '#c8f060',
+  axleLine: 'rgba(200,240,96,0.25)',
+  text: '#6b6a66',
+  textBright: '#e8e6e0',
+  accent2: '#60c8f0',
+  ok: '#60f090',
+  warn: '#f0a060',
+};
+
+// ===================== TAB SWITCHING =====================
+let currentTab = 'bogie';
+function switchTab(t) {
+  currentTab = t;
+  document.getElementById('panel-bogie').classList.toggle('active', t === 'bogie');
+  document.getElementById('panel-tri').classList.toggle('active', t === 'tri');
+  document.getElementById('tab-bogie').classList.toggle('active', t === 'bogie');
+  document.getElementById('tab-tri').classList.toggle('active', t === 'tri');
+  setTimeout(() => { t === 'bogie' ? bogieUpdate() : triUpdate(); }, 50);
+}
+
+// ===================== BOGIE =====================
+let bogieAnimRunning = false;
+let bogieAnimFrame = null;
+let bogieAnimT = 0; // 0=before step, 1=fully climbed
+let bogieAnimDir = 1;
+
+function toggleBogieAnim() {
+  bogieAnimRunning = !bogieAnimRunning;
+  const btn = document.getElementById('bogie-anim-btn');
+  btn.textContent = bogieAnimRunning ? '⏸ Pause' : '▶ Animate Climb';
+  btn.classList.toggle('active', bogieAnimRunning);
+  if (bogieAnimRunning) bogieAnimLoop();
+  else if (bogieAnimFrame) cancelAnimationFrame(bogieAnimFrame);
+}
+
+function bogieAnimLoop() {
+  if (!bogieAnimRunning) return;
+  bogieAnimT += 0.008 * bogieAnimDir;
+  if (bogieAnimT >= 1) { bogieAnimT = 1; bogieAnimDir = -1; }
+  if (bogieAnimT <= 0) { bogieAnimT = 0; bogieAnimDir = 1; }
+  bogieRender();
+  bogieAnimFrame = requestAnimationFrame(bogieAnimLoop);
+}
+
+function bogieUpdate() {
+  bogieRender();
+}
+
+function bogieRender() {
+  const r = +document.getElementById('r-s').value;
+  const b = +document.getElementById('b-s').value;
+  const h = +document.getElementById('h-s').value;
+  const phiDeg = +document.getElementById('phi-s').value;
+  const phi = toRad(phiDeg);
+
+  document.getElementById('r-val').textContent = r;
+  document.getElementById('b-val').textContent = b;
+  document.getElementById('h-val').textContent = h;
+  document.getElementById('phi-val').textContent = phiDeg + '°';
+
+  const disc = 2 * r * h - h * h;
+  const valid = disc >= 0 && r > h && b > sqrt(disc);
+
+  if (!valid) {
+    ['mv-phimax','mv-ymin','mv-yapex','xc-val','yc-val','L-val'].forEach(id => {
+      const el = document.getElementById(id); if(el) el.textContent = 'n/a';
+    });
+    drawBogieInvalid();
+    return;
+  }
+
+  const sqD = sqrt(disc);
+  const phiMaxRad = 2 * Math.atan((b - sqD) / (r - h));
+  const phiMaxDeg = toDeg(phiMaxRad);
+  const cotHalfPhiMax = (r - h) / (b - sqD);
+  const yMin = r + (b / 2) * cotHalfPhiMax;
+  const L = b / (2 * sin(phi / 2));
+  const yApex = r + (b / 2) / tan(phi / 2);
+  const xc = sqD;
+  const yc = r - h;
+  const safe = phiDeg <= phiMaxDeg + 0.05;
+
+  document.getElementById('mv-phimax').textContent = phiMaxDeg.toFixed(1) + '°';
+  document.getElementById('mv-ymin').textContent = yMin.toFixed(1);
+  document.getElementById('mv-yapex').textContent = yApex.toFixed(1);
+  document.getElementById('mn-yapex').textContent = safe ? '≥ y_min ✓ rear arm clears' : '< y_min ✗ collision!';
+  document.getElementById('xc-val').textContent = xc.toFixed(1);
+  document.getElementById('yc-val').textContent = yc.toFixed(1);
+  document.getElementById('L-val').textContent = L.toFixed(1);
+
+  const mcYapex = document.getElementById('mc-yapex');
+  const mvYapex = document.getElementById('mv-yapex');
+  mcYapex.className = 'metric-card ' + (safe ? 'ok' : 'danger');
+  mvYapex.className = 'metric-val ' + (safe ? 'ok' : 'danger');
+
+  const badge = document.getElementById('bogie-badge');
+  badge.textContent = safe ? 'CLEAR' : 'COLLISION';
+  badge.className = 'status-badge ' + (safe ? 'ok' : 'danger');
+
+  drawBogie(r, b, h, phi, phiMaxRad, yMin, yApex, safe, sqD);
+}
+
+function drawBogieInvalid() {
+  const canvas = document.getElementById('bogie-canvas');
+  const area = document.getElementById('bogie-canvas-area');
+  const { ctx, W, H } = resizeCanvas(canvas, area);
+  ctx.fillStyle = C.bg;
+  ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = C.text;
+  ctx.font = '13px JetBrains Mono';
+  ctx.textAlign = 'center';
+  ctx.fillText('Invalid parameters (h ≥ r or b ≤ √(2rh−h²))', W/2, H/2);
+}
+
+function drawBogie(r, b, h, phi, phiMaxRad, yMin, yApex, safe, sqD) {
+  const canvas = document.getElementById('bogie-canvas');
+  const area = document.getElementById('bogie-canvas-area');
+  const { ctx, W, H } = resizeCanvas(canvas, area);
+
+  ctx.fillStyle = C.bg;
+  ctx.fillRect(0, 0, W, H);
+
+  // Grid
+  ctx.strokeStyle = C.grid;
+  ctx.lineWidth = 1;
+  for (let x = 0; x < W; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+  for (let y = 0; y < H; y += 40) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+
+  // Scale: fit comfortably
+  const maxDim = Math.max(b * 1.4, (r + h) * 3, yApex * 1.5);
+  const sc = Math.min(W, H) * 0.55 / maxDim;
+
+  // We'll show: the "critical moment" — front wheel at the step corner.
+  // Additionally animate the bogie climbing over the step.
+
+  // Step corner at canvas coords:
+  const cornerX = W * 0.48;
+  const cornerY = H * 0.52;
+
+  // Ground level = cornerY + h*sc (below step corner)
+  // Step top = cornerY (step corner is at top of step)
+  // Floor on step side = cornerY (above)
+  // Floor below = cornerY + h*sc
+
+  // Draw ground / step
+  // Upper plateau (step top, right side)
+  ctx.fillStyle = C.step;
+  ctx.fillRect(cornerX, 0, W - cornerX, cornerY);
+  ctx.strokeStyle = C.stepStroke;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.moveTo(cornerX, 0); ctx.lineTo(cornerX, cornerY); ctx.lineTo(W, cornerY);
+  ctx.stroke();
+
+  // Lower ground (left side)
+  const groundY = cornerY + h * sc;
+  ctx.fillStyle = C.ground;
+  ctx.fillRect(0, groundY, W, H - groundY);
+  ctx.strokeStyle = C.groundStroke;
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0, groundY); ctx.lineTo(cornerX, groundY); ctx.lineTo(cornerX, cornerY); ctx.stroke();
+
+  // Corner marker
+  ctx.fillStyle = C.corner;
+  ctx.beginPath(); ctx.arc(cornerX, cornerY, 4, 0, 2*PI); ctx.fill();
+  ctx.font = '11px JetBrains Mono';
+  ctx.fillStyle = C.corner;
+  ctx.textAlign = 'left';
+  ctx.fillText('step corner (0,0)', cornerX + 8, cornerY - 6);
+
+  // Animation: bogieAnimT controls rotation about corner
+  // t=0: initial config (front wheel just touching corner from flat side)
+  // t=1: front wheel is at top of step (rotated 90-ish deg)
+
+  // At t=0: front wheel centre at (sqD*sc, -(r-h)*sc) relative to corner
+  // As bogie rotates angle θ about corner (from 0 to some max), front wheel
+  // centre traces arc of radius r about corner.
+  // Initial angle of front wheel centre from corner:
+  const theta0 = atan2(-(r - h), sqD); // negative y = up
+  // Max rotation: front wheel clears onto step = when wheel centre is above step
+  // = corner angle goes to atan2(-r, 0) = -PI/2 in SVG-ish coords
+  const thetaEnd = atan2(-r, 0); // straight up
+
+  const theta = bogieAnimRunning
+    ? theta0 + bogieAnimT * (thetaEnd - theta0)
+    : theta0;
+
+  // Front wheel centre in world (canvas) coords
+  const fwX = cornerX + r * sc * cos(theta);
+  const fwY = cornerY + r * sc * sin(theta); // canvas y increases downward
+
+  // Rear wheel: b distance behind front wheel along the bogie axis.
+  // When front wheel at corner, bogie was rolling on flat. The bogie angle
+  // with horizontal changes during climbing. Initially rear wheel on ground.
+  // Let's parameterize: the vector from rear to front wheel centre,
+  // at t=0 it's horizontal (b, 0). As bogie rotates, angle of this vector
+  // becomes theta + something... Actually the rotation is about the step corner
+  // (contact point). The entire bogie (both centres + V) rotates rigidly
+  // about that corner.
+
+  // Rotation of the bogie frame about corner = theta - theta0
+  const bogieRot = theta - theta0;
+
+  // At t=0: rear wheel centre relative to corner = front - (b,0) = (sqD-b, -(r-h))*sc
+  const rw0X = sqD - b;
+  const rw0Y = -(r - h);
+  // Rotate by bogieRot
+  const rwRelX = rw0X * cos(bogieRot) - rw0Y * sin(bogieRot);
+  const rwRelY = rw0X * sin(bogieRot) + rw0Y * cos(bogieRot);
+  const rwX = cornerX + rwRelX * sc;
+  const rwY = cornerY + rwRelY * sc;
+
+  // Midpoint
+  const midX = (fwX + rwX) / 2;
+  const midY = (fwY + rwY) / 2;
+
+  // V-link apex: perpendicular to the bogie axis (upward = negative canvas y)
+  const axisLen = sqrt((fwX-rwX)**2 + (fwY-rwY)**2);
+  const axNX = -(fwY - rwY) / axisLen; // perpendicular unit, pointing "up"
+  const axNY = (fwX - rwX) / axisLen;
+  const L = b / (2 * sin(phi / 2));
+  const apexH = L * cos(phi / 2);
+  const apexX = midX + axNX * apexH * sc;
+  const apexY = midY + axNY * apexH * sc;
+
+  // Draw rear wheel spoke lines
+  ctx.strokeStyle = 'rgba(83,74,183,0.3)';
+  ctx.lineWidth = 0.5;
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * PI * 2 + bogieRot;
+    ctx.beginPath();
+    ctx.moveTo(rwX, rwY);
+    ctx.lineTo(rwX + r * sc * cos(a), rwY + r * sc * sin(a));
+    ctx.stroke();
+  }
+
+  // Draw rear wheel
+  ctx.strokeStyle = C.wheel;
+  ctx.lineWidth = 2;
+  ctx.fillStyle = C.wheelFill;
+  ctx.beginPath(); ctx.arc(rwX, rwY, r * sc, 0, 2*PI);
+  ctx.fill(); ctx.stroke();
+
+  // Draw front wheel spokes
+  ctx.strokeStyle = 'rgba(83,74,183,0.3)';
+  ctx.lineWidth = 0.5;
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * PI * 2 + bogieRot;
+    ctx.beginPath();
+    ctx.moveTo(fwX, fwY);
+    ctx.lineTo(fwX + r * sc * cos(a), fwY + r * sc * sin(a));
+    ctx.stroke();
+  }
+
+  // Draw front wheel
+  ctx.strokeStyle = C.wheelHL;
+  ctx.lineWidth = 2.5;
+  ctx.fillStyle = C.wheelFill;
+  ctx.beginPath(); ctx.arc(fwX, fwY, r * sc, 0, 2*PI);
+  ctx.fill(); ctx.stroke();
+  // Front wheel centre
+  ctx.fillStyle = C.wheelHL;
+  ctx.beginPath(); ctx.arc(fwX, fwY, 3, 0, 2*PI); ctx.fill();
+
+  // Rear wheel centre
+  ctx.fillStyle = C.wheel;
+  ctx.beginPath(); ctx.arc(rwX, rwY, 3, 0, 2*PI); ctx.fill();
+
+  // V-link arms
+  const apexColor = safe ? C.arm : C.apexDanger;
+  ctx.strokeStyle = apexColor;
+  ctx.lineWidth = 2.5;
+  ctx.fillStyle = safe ? 'rgba(200,240,96,0.05)' : 'rgba(240,96,96,0.05)';
+  ctx.beginPath();
+  ctx.moveTo(rwX, rwY);
+  ctx.lineTo(apexX, apexY);
+  ctx.lineTo(fwX, fwY);
+  ctx.closePath();
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(rwX, rwY);
+  ctx.lineTo(apexX, apexY);
+  ctx.lineTo(fwX, fwY);
+  ctx.stroke();
+
+  // Apex dot
+  ctx.fillStyle = apexColor;
+  ctx.beginPath(); ctx.arc(apexX, apexY, 6, 0, 2*PI); ctx.fill();
+
+  // Glow on apex
+  const grd = ctx.createRadialGradient(apexX, apexY, 0, apexX, apexY, 20);
+  grd.addColorStop(0, safe ? 'rgba(200,240,96,0.3)' : 'rgba(240,96,96,0.3)');
+  grd.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = grd;
+  ctx.beginPath(); ctx.arc(apexX, apexY, 20, 0, 2*PI); ctx.fill();
+
+  // Label apex
+  ctx.fillStyle = apexColor;
+  ctx.font = '11px JetBrains Mono';
+  ctx.textAlign = 'center';
+  ctx.fillText('apex', apexX, apexY - 10);
+
+  // Show axis between wheel centres
+  ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([3, 5]);
+  ctx.beginPath(); ctx.moveTo(fwX, fwY); ctx.lineTo(rwX, rwY); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Dimension: b
+  const bMidX = (fwX + rwX) / 2;
+  const bMidY = (fwY + rwY) / 2 + 14;
+  ctx.fillStyle = C.text;
+  ctx.font = '10px JetBrains Mono';
+  ctx.textAlign = 'center';
+  ctx.fillText('b = ' + document.getElementById('b-s').value, bMidX, bMidY + 20);
+
+  // h dimension line
+  ctx.strokeStyle = C.text;
+  ctx.lineWidth = 0.5;
+  ctx.setLineDash([2,3]);
+  ctx.beginPath();
+  ctx.moveTo(cornerX - 20, cornerY);
+  ctx.lineTo(cornerX - 20, groundY);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = C.text;
+  ctx.textAlign = 'right';
+  ctx.fillText('h=' + document.getElementById('h-s').value, cornerX - 24, (cornerY + groundY) / 2 + 4);
+
+  // r dimension for front wheel
+  ctx.strokeStyle = 'rgba(127,119,221,0.5)';
+  ctx.lineWidth = 0.5;
+  ctx.setLineDash([2,3]);
+  ctx.beginPath(); ctx.moveTo(fwX, fwY); ctx.lineTo(fwX + r*sc, fwY); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = C.wheelHL;
+  ctx.font = '10px JetBrains Mono';
+  ctx.textAlign = 'left';
+  ctx.fillText('r=' + document.getElementById('r-s').value, fwX + r*sc/2, fwY - 4);
+}
+
+// ===================== TRIANGULAR WHEEL =====================
+let triAnimRunning = false;
+let triAnimFrame = null;
+let triAnimPhase = 0;
+
+function toggleTriAnim() {
+  triAnimRunning = !triAnimRunning;
+  const btn = document.getElementById('tri-anim-btn');
+  btn.textContent = triAnimRunning ? '⏸ Pause' : '▶ Animate Roll';
+  btn.classList.toggle('active', triAnimRunning);
+  if (triAnimRunning) triAnimLoop();
+  else if (triAnimFrame) cancelAnimationFrame(triAnimFrame);
+}
+
+function triAnimLoop() {
+  if (!triAnimRunning) return;
+  triAnimPhase += 0.6;
+  if (triAnimPhase >= 120) triAnimPhase -= 120;
+  document.getElementById('pvt-s').value = triAnimPhase.toFixed(0);
+  triUpdate();
+  triAnimFrame = requestAnimationFrame(triAnimLoop);
+}
+
+function triUpdate() {
+  const s = +document.getElementById('s-s').value;
+  const H = +document.getElementById('H-s').value;
+  const pvtDeg = +document.getElementById('pvt-s').value;
+  const pvt = toRad(pvtDeg);
+
+  document.getElementById('s-val').textContent = s;
+  document.getElementById('H-val').textContent = H;
+  document.getElementById('pvt-val').textContent = pvtDeg + '°';
+
+  const Rv = s / sqrt(3);
+  const Rs = s / (2 * sqrt(3));
+  const centH = Rv * sin(toRad(30) + pvt);
+  const roadH = H - centH;
+  const check = centH + roadH;
+
+  document.getElementById('mv-Rv').textContent = Rv.toFixed(1);
+  document.getElementById('mv-Rs').textContent = Rs.toFixed(1);
+  document.getElementById('mv-ch').textContent = centH.toFixed(1);
+  document.getElementById('mv-road').textContent = roadH.toFixed(1);
+  document.getElementById('mv-check').textContent = check.toFixed(1) + ' ✓';
+  document.getElementById('Rv-formula').textContent = Rv.toFixed(1);
+
+  drawTri(s, H, pvt, Rv, Rs, centH, roadH);
+}
+
+function drawTri(s, H, pvt, Rv, Rs, centH, roadH) {
+  const canvas = document.getElementById('tri-canvas');
+  const area = document.getElementById('tri-canvas-area');
+  const { ctx, W, H2 } = resizeCanvas(canvas, area);
+  const CH = canvas.height / (window.devicePixelRatio || 1);
+
+  ctx.fillStyle = C.bg;
+  ctx.fillRect(0, 0, W, CH);
+
+  // Grid
+  ctx.strokeStyle = C.grid;
+  ctx.lineWidth = 1;
+  for (let x = 0; x < W; x += 40) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, CH); ctx.stroke(); }
+  for (let y = 0; y < CH; y += 40) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+
+  // Scale: show 3 full periods of road
+  const periods = 3;
+  const roadWidth = periods * s;
+  const sc = Math.min(W * 0.85 / roadWidth, CH * 0.55 / H);
+
+  const axleScreenY = CH * 0.22;
+  const axleScreenX = W * 0.5;
+
+  // Draw road profile: 3 periods, centered
+  const roadStartX = axleScreenX - (periods / 2) * s * sc;
+  const roadBaseY = axleScreenY + H * sc; // bottom of road "valley"
+
+  // Road fill
+  ctx.beginPath();
+  let firstPt = true;
+  for (let p = 0; p < periods; p++) {
+    for (let xi = 0; xi <= 100; xi++) {
+      const xf = xi / 100;
+      const xRoad = xf * s;
+      const yRoad = H - sqrt(Math.max(0, s*s/3 - (xRoad - s/2)**2));
+      const sx = roadStartX + (p + xf) * s * sc;
+      const sy = axleScreenY + yRoad * sc;
+      if (firstPt) { ctx.moveTo(sx, sy); firstPt = false; }
+      else ctx.lineTo(sx, sy);
+    }
+  }
+  ctx.lineTo(roadStartX + periods * s * sc, CH);
+  ctx.lineTo(roadStartX, CH);
+  ctx.closePath();
+  ctx.fillStyle = C.road;
+  ctx.fill();
+  ctx.strokeStyle = C.roadStroke;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  firstPt = true;
+  for (let p = 0; p < periods; p++) {
+    for (let xi = 0; xi <= 100; xi++) {
+      const xf = xi / 100;
+      const xRoad = xf * s;
+      const yRoad = H - sqrt(Math.max(0, s*s/3 - (xRoad - s/2)**2));
+      const sx = roadStartX + (p + xf) * s * sc;
+      const sy = axleScreenY + yRoad * sc;
+      if (firstPt) { ctx.moveTo(sx, sy); firstPt = false; }
+      else ctx.lineTo(sx, sy);
+    }
+  }
+  ctx.stroke();
+
+  // Road arcs: show radius indicators
+  ctx.strokeStyle = 'rgba(96,200,240,0.15)';
+  ctx.lineWidth = 0.5;
+  ctx.setLineDash([3,5]);
+  for (let p = 0; p < periods; p++) {
+    const arcCenterX = roadStartX + (p + 0.5) * s * sc;
+    const arcCenterY = axleScreenY; // arc center is at H above the deepest road point
+    // The arc has radius Rv*sc = s/sqrt(3)*sc
+    const arcR = Rv * sc;
+    ctx.beginPath();
+    ctx.arc(arcCenterX, arcCenterY, arcR, toRad(30), toRad(150));
+    ctx.stroke();
+  }
+  ctx.setLineDash([]);
+
+  // Now draw the wheel at its current position in the middle period
+  // Contact point x relative to period start: Rv*(cos30 - cos(30+pvt))
+  const xContactRel = Rv * (cos(toRad(30)) - cos(toRad(30) + pvt));
+  const yContactRel = H - sqrt(Math.max(0, s*s/3 - (xContactRel - s/2)**2));
+
+  // In canvas coords (middle period = period index 1)
+  const pivotSX = roadStartX + (1 + xContactRel/s) * s * sc;
+  const pivotSY = axleScreenY + yContactRel * sc;
+
+  // Centroid = axle
+  const centSX = axleScreenX;
+  const centSY = axleScreenY;
+
+  // Angle from pivot to centroid
+  const anglePivotToCent = atan2(centSY - pivotSY, centSX - pivotSX);
+
+  // The 3 vertices: one is at the pivot, others at +/-120 deg from Rv direction
+  // Actually: during the pivot about vertex V, that vertex is the contact.
+  // The centroid is at distance Rv from V.
+  // Angle of centroid from V: anglePivotToCent (upward = negative canvas y)
+  // Vertex 0 = pivot itself
+  // Vertex 1 = +120 from pivot about centroid
+  // Vertex 2 = -120 from pivot about centroid
+
+  const verts = [];
+  for (let i = 0; i < 3; i++) {
+    const a = anglePivotToCent + toRad(i * 120);
+    verts.push([
+      centSX + Rv * sc * cos(a),
+      centSY + Rv * sc * sin(a)
+    ]);
+  }
+
+  // Draw triangle fill
+  ctx.fillStyle = C.triFill;
+  ctx.beginPath();
+  ctx.moveTo(verts[0][0], verts[0][1]);
+  ctx.lineTo(verts[1][0], verts[1][1]);
+  ctx.lineTo(verts[2][0], verts[2][1]);
+  ctx.closePath();
+  ctx.fill();
+
+  // Triangle edges
+  ctx.strokeStyle = C.triWheel;
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(verts[0][0], verts[0][1]);
+  ctx.lineTo(verts[1][0], verts[1][1]);
+  ctx.lineTo(verts[2][0], verts[2][1]);
+  ctx.closePath();
+  ctx.stroke();
+
+  // Highlight active contact vertex
+  ctx.strokeStyle = C.triHL;
+  ctx.lineWidth = 2.5;
+  // Find vertex closest to pivot
+  let closestI = 0, closestD = 1e9;
+  verts.forEach((v, i) => {
+    const d = sqrt((v[0]-pivotSX)**2 + (v[1]-pivotSY)**2);
+    if (d < closestD) { closestD = d; closestI = i; }
+  });
+  ctx.fillStyle = C.triHL;
+  ctx.beginPath(); ctx.arc(verts[closestI][0], verts[closestI][1], 5, 0, 2*PI); ctx.fill();
+
+  // Centroid (axle)
+  ctx.fillStyle = C.axle;
+  ctx.beginPath(); ctx.arc(centSX, centSY, 6, 0, 2*PI); ctx.fill();
+  const axleGrd = ctx.createRadialGradient(centSX, centSY, 0, centSX, centSY, 20);
+  axleGrd.addColorStop(0, 'rgba(200,240,96,0.4)');
+  axleGrd.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = axleGrd;
+  ctx.beginPath(); ctx.arc(centSX, centSY, 20, 0, 2*PI); ctx.fill();
+
+  // Axle trajectory line (constant height)
+  ctx.strokeStyle = C.axleLine;
+  ctx.lineWidth = 1;
+  ctx.setLineDash([5, 8]);
+  ctx.beginPath(); ctx.moveTo(0, centSY); ctx.lineTo(W, centSY); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Rv line from centroid to contact vertex
+  ctx.strokeStyle = 'rgba(200,240,96,0.4)';
+  ctx.lineWidth = 1;
+  ctx.setLineDash([3,4]);
+  ctx.beginPath(); ctx.moveTo(centSX, centSY); ctx.lineTo(pivotSX, pivotSY); ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Contact point on road
+  ctx.fillStyle = C.corner;
+  ctx.beginPath(); ctx.arc(pivotSX, pivotSY, 4, 0, 2*PI); ctx.fill();
+
+  // Labels
+  ctx.font = '11px JetBrains Mono';
+  ctx.fillStyle = C.axle;
+  ctx.textAlign = 'left';
+  ctx.fillText('axle — constant height H = ' + document.getElementById('H-s').value, centSX + 10, centSY - 8);
+
+  ctx.fillStyle = 'rgba(200,240,96,0.6)';
+  ctx.textAlign = 'center';
+  ctx.fillText('R_v = ' + Rv.toFixed(1), (centSX + pivotSX) / 2 + 14, (centSY + pivotSY) / 2);
+
+  ctx.fillStyle = C.accent2;
+  ctx.textAlign = 'left';
+  ctx.fillText('contact', pivotSX + 6, pivotSY - 6);
+
+  // Road label
+  ctx.fillStyle = C.text;
+  ctx.font = '10px JetBrains Mono';
+  ctx.textAlign = 'center';
+  ctx.fillText('y_road(x) = H − √(s²/3 − (x − s/2)²)  ·  period = s = ' + s, W/2, CH - 14);
+
+  // Period markers
+  ctx.fillStyle = C.text;
+  for (let p = 0; p <= periods; p++) {
+    const px = roadStartX + p * s * sc;
+    ctx.beginPath(); ctx.moveTo(px, CH - 30); ctx.lineTo(px, CH - 20); ctx.stroke();
+    ctx.textAlign = 'center';
+    ctx.fillText(p === 0 ? '0' : p*s, px, CH - 10);
+  }
+}
+
+// Init
+window.addEventListener('resize', () => {
+  if (currentTab === 'bogie') bogieUpdate();
+  else triUpdate();
+});
+
+bogieUpdate();
+setTimeout(triUpdate, 100);
+</script>
+</body>
+</html>
