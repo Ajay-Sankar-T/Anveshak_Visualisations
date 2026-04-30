@@ -1,0 +1,832 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Q6 — Eccentric Disc Mechanism</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;700;800&display=swap');
+
+:root {
+  --bg:      #07090f;
+  --surface: #0e1118;
+  --panel:   #131720;
+  --border:  #1e2535;
+  --D:       #e2e8f0;   /* shaft D — white/silver */
+  --C:       #38bdf8;   /* shaft C — sky blue */
+  --A:       #f59e0b;   /* disc A — amber */
+  --B:       #34d399;   /* shaft B — emerald */
+  --contact: #f472b6;   /* contact point — pink */
+  --slip:    #f87171;   /* slip indicator — red */
+  --roll:    #4ade80;   /* pure roll — green */
+  --text:    #e2e8f0;
+  --muted:   #64748b;
+  --accent:  #7c3aed;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Mono', monospace;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* subtle grid bg */
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 0;
+  background-image:
+    linear-gradient(var(--border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border) 1px, transparent 1px);
+  background-size: 40px 40px;
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+.wrap { position: relative; z-index: 1; display: flex; flex-direction: column; min-height: 100vh; }
+
+/* ── HEADER ─────────────────────────────────────────────────────── */
+header {
+  padding: 22px 32px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: baseline; gap: 20px; flex-wrap: wrap;
+}
+header h1 {
+  font-family: 'Syne', sans-serif;
+  font-size: 22px; font-weight: 800;
+  background: linear-gradient(90deg, var(--A), var(--B));
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  letter-spacing: -0.5px;
+}
+header p { font-size: 11px; color: var(--muted); letter-spacing: 0.5px; }
+
+/* ── MAIN LAYOUT ─────────────────────────────────────────────────── */
+main {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 0;
+}
+
+/* ── CANVAS SECTION ──────────────────────────────────────────────── */
+.canvas-section {
+  padding: 24px;
+  display: flex; flex-direction: column; gap: 16px;
+}
+
+.canvas-row { display: flex; gap: 16px; flex-wrap: wrap; }
+
+.canvas-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  flex: 1; min-width: 280px;
+}
+.canvas-card-title {
+  font-size: 10px; font-weight: 500; letter-spacing: 1.5px;
+  color: var(--muted); text-transform: uppercase;
+  padding: 10px 14px 8px;
+  border-bottom: 1px solid var(--border);
+}
+canvas { display: block; width: 100%; }
+
+/* ── EQUATION STRIP ─────────────────────────────────────────────── */
+.eq-strip {
+  display: flex; gap: 12px; flex-wrap: wrap;
+}
+.eq-card {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 16px;
+  flex: 1; min-width: 180px;
+}
+.eq-label { font-size: 9px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 6px; }
+.eq-val   { font-size: 18px; font-weight: 500; font-family: 'Syne', sans-serif; }
+.eq-sub   { font-size: 10px; color: var(--muted); margin-top: 3px; }
+
+/* ── PHASE PLOT ─────────────────────────────────────────────────── */
+.phase-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px; overflow: hidden;
+}
+
+/* ── SIDEBAR ─────────────────────────────────────────────────────── */
+aside {
+  border-left: 1px solid var(--border);
+  background: var(--surface);
+  padding: 24px 20px;
+  display: flex; flex-direction: column; gap: 20px;
+  overflow-y: auto;
+}
+
+.section-title {
+  font-size: 9px; letter-spacing: 2px; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 12px;
+  padding-bottom: 6px; border-bottom: 1px solid var(--border);
+}
+
+/* sliders */
+.slider-group { display: flex; flex-direction: column; gap: 14px; }
+.slider-row { display: flex; flex-direction: column; gap: 5px; }
+.slider-header { display: flex; justify-content: space-between; align-items: baseline; }
+.slider-name { font-size: 11px; color: var(--text); }
+.slider-val  { font-size: 13px; font-family: 'Syne', sans-serif; font-weight: 700; }
+input[type=range] {
+  width: 100%; height: 3px;
+  -webkit-appearance: none; appearance: none;
+  background: var(--border); border-radius: 2px; cursor: pointer;
+  outline: none;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--A); border: 2px solid var(--bg);
+  cursor: pointer; transition: transform .15s;
+}
+input[type=range]:hover::-webkit-slider-thumb { transform: scale(1.3); }
+
+/* toggle */
+.toggle-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 12px;
+  background: var(--panel); border-radius: 8px; border: 1px solid var(--border);
+  cursor: pointer; transition: border-color .2s;
+}
+.toggle-row:hover { border-color: var(--B); }
+.toggle-label { font-size: 11px; }
+.toggle-switch {
+  width: 34px; height: 18px; background: var(--border);
+  border-radius: 9px; position: relative; transition: background .2s;
+  flex-shrink: 0;
+}
+.toggle-switch.on { background: var(--B); }
+.toggle-switch::after {
+  content: ''; position: absolute;
+  top: 2px; left: 2px; width: 14px; height: 14px;
+  border-radius: 50%; background: white;
+  transition: transform .2s;
+}
+.toggle-switch.on::after { transform: translateX(16px); }
+
+/* play/pause */
+.btn {
+  width: 100%; padding: 11px;
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 8px; color: var(--text); cursor: pointer;
+  font-family: 'DM Mono', monospace; font-size: 12px; letter-spacing: 1px;
+  transition: all .2s;
+}
+.btn:hover { border-color: var(--A); color: var(--A); }
+.btn.playing { background: var(--A); color: #000; border-color: var(--A); font-weight: 500; }
+
+/* legend */
+.legend { display: flex; flex-direction: column; gap: 8px; }
+.leg { display: flex; align-items: center; gap: 10px; font-size: 11px; color: var(--muted); }
+.leg-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.leg-line{ width: 18px; height: 3px; border-radius: 1px; flex-shrink: 0; }
+
+/* slip indicator badge */
+.badge {
+  padding: 8px 12px; border-radius: 6px; font-size: 11px; font-weight: 500;
+  letter-spacing: 0.5px; text-align: center;
+  transition: all .3s;
+}
+.badge.slip { background: #7f1d1d; border: 1px solid var(--slip); color: var(--slip); }
+.badge.roll { background: #14532d; border: 1px solid var(--roll); color: var(--roll); }
+
+/* insight box */
+.insight {
+  background: var(--panel); border-left: 3px solid var(--accent);
+  border-radius: 0 6px 6px 0; padding: 10px 12px;
+  font-size: 10px; color: var(--muted); line-height: 1.7;
+}
+.insight span { color: var(--text); }
+
+@media (max-width: 700px) {
+  main { grid-template-columns: 1fr; }
+  aside { border-left: none; border-top: 1px solid var(--border); }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Q6 — Eccentric Disc Mechanism</h1>
+  <p>Shaft D fixed &nbsp;·&nbsp; C revolves at ω₂ &nbsp;·&nbsp; A spins at ω₁ &nbsp;·&nbsp; B rolls/slips in hole of A</p>
+</header>
+
+<main>
+<!-- ═══════════════ CANVAS SECTION ═══════════════ -->
+<div class="canvas-section">
+
+  <!-- Top row: mechanism + phase -->
+  <div class="canvas-row">
+    <div class="canvas-card" style="flex:1.4; min-width:320px;">
+      <div class="canvas-card-title">Top view — mechanism</div>
+      <canvas id="mechCanvas" height="380"></canvas>
+    </div>
+    <div class="canvas-card" style="flex:0.9; min-width:240px;">
+      <div class="canvas-card-title">Contact surface — slip tracker</div>
+      <canvas id="slipCanvas" height="380"></canvas>
+    </div>
+  </div>
+
+  <!-- Equation strip -->
+  <div class="eq-strip">
+    <div class="eq-card">
+      <div class="eq-label">Absolute spin of A</div>
+      <div class="eq-val" id="eq_OmA" style="color:var(--A)">—</div>
+      <div class="eq-sub">Ω_A = ω₁ + ω₂</div>
+    </div>
+    <div class="eq-card">
+      <div class="eq-label">B angular velocity θ̇</div>
+      <div class="eq-val" id="eq_thdot" style="color:var(--B)">—</div>
+      <div class="eq-sub">θ̇ = ω₁ + ω₂ (pure roll)</div>
+    </div>
+    <div class="eq-card">
+      <div class="eq-label">θ(t) at this instant</div>
+      <div class="eq-val" id="eq_theta" style="color:var(--contact)">—</div>
+      <div class="eq-sub">θ = (ω₁+ω₂)·t rad</div>
+    </div>
+    <div class="eq-card">
+      <div class="eq-label">Slip velocity</div>
+      <div class="eq-val" id="eq_slip" style="color:var(--slip)">—</div>
+      <div class="eq-sub">v_slip = (Ω_A − θ̇)·Rr</div>
+    </div>
+  </div>
+
+  <!-- θ vs t plot -->
+  <div class="phase-card">
+    <div class="canvas-card-title">θ(t) — angle of shaft B over time</div>
+    <canvas id="plotCanvas" height="140"></canvas>
+  </div>
+
+</div>
+
+<!-- ═══════════════ SIDEBAR ═══════════════ -->
+<aside>
+
+  <div>
+    <div class="section-title">Parameters</div>
+    <div class="slider-group">
+
+      <div class="slider-row">
+        <div class="slider-header">
+          <span class="slider-name">ω₁ — spin of A rel. C</span>
+          <span class="slider-val" id="v_w1" style="color:var(--A)">2.0</span>
+        </div>
+        <input type="range" id="s_w1" min="-6" max="6" step="0.1" value="2">
+        <div style="font-size:9px;color:var(--muted)">rad/s &nbsp;(−6 to +6)</div>
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-header">
+          <span class="slider-name">ω₂ — revolution of C</span>
+          <span class="slider-val" id="v_w2" style="color:var(--C)">1.0</span>
+        </div>
+        <input type="range" id="s_w2" min="-6" max="6" step="0.1" value="1">
+        <div style="font-size:9px;color:var(--muted)">rad/s &nbsp;(−6 to +6)</div>
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-header">
+          <span class="slider-name">Rh — hole radius</span>
+          <span class="slider-val" id="v_Rh" style="color:var(--A)">80</span>
+        </div>
+        <input type="range" id="s_Rh" min="50" max="120" step="1" value="80">
+        <div style="font-size:9px;color:var(--muted)">px units</div>
+      </div>
+
+      <div class="slider-row">
+        <div class="slider-header">
+          <span class="slider-name">Rr — shaft B radius</span>
+          <span class="slider-val" id="v_Rr" style="color:var(--B)">30</span>
+        </div>
+        <input type="range" id="s_Rr" min="5" max="70" step="1" value="30">
+        <div style="font-size:9px;color:var(--muted)">px units (must be &lt; Rh)</div>
+      </div>
+
+      <!-- manual B speed — only active when NOT pure rolling -->
+      <div class="slider-row" id="thdot_row">
+        <div class="slider-header">
+          <span class="slider-name">θ̇ — B spin (manual)</span>
+          <span class="slider-val" id="v_thdot" style="color:var(--slip)">3.0</span>
+        </div>
+        <input type="range" id="s_thdot" min="-8" max="8" step="0.1" value="3">
+        <div style="font-size:9px;color:var(--muted)">rad/s — drag to see slip</div>
+      </div>
+
+    </div>
+  </div>
+
+  <div>
+    <div class="section-title">Mode</div>
+    <div class="toggle-row" id="pureRollToggle" onclick="togglePureRoll()">
+      <span class="toggle-label">Pure rolling (θ̇ = ω₁+ω₂)</span>
+      <div class="toggle-switch on" id="pureSwitch"></div>
+    </div>
+    <div style="margin-top:8px;">
+      <div class="badge roll" id="slipBadge">✓ Pure rolling — no slip</div>
+    </div>
+  </div>
+
+  <div>
+    <div class="section-title">Animation</div>
+    <button class="btn playing" id="playBtn" onclick="togglePlay()">⏸ PAUSE</button>
+    <button class="btn" style="margin-top:8px;" onclick="resetTime()">↺ RESET</button>
+  </div>
+
+  <div>
+    <div class="section-title">Legend</div>
+    <div class="legend">
+      <div class="leg"><div class="leg-dot" style="background:var(--D)"></div>Shaft D (fixed, axis 1)</div>
+      <div class="leg"><div class="leg-dot" style="background:var(--C)"></div>Shaft C (revolves at ω₂)</div>
+      <div class="leg"><div class="leg-dot" style="background:var(--A); border-radius:2px; width:18px; height:10px;"></div>Disc A (spins ω₁, revolves ω₂)</div>
+      <div class="leg"><div class="leg-dot" style="background:var(--B)"></div>Shaft B (rotates θ̇ about D)</div>
+      <div class="leg"><div class="leg-dot" style="background:var(--contact)"></div>Contact point</div>
+      <div class="leg"><div class="leg-line" style="background:var(--A); opacity:0.5;"></div>Marker on A's hole wall</div>
+      <div class="leg"><div class="leg-line" style="background:var(--B); opacity:0.5;"></div>Marker on B's surface</div>
+    </div>
+  </div>
+
+  <div class="insight">
+    <span>Key insight:</span> The contact point is always at distance Rr from D (on B's surface) and at distance Rh from C (on A's hole wall). Since both are at radius Rr from D, velocity matching gives <span>θ̇ = ω₁+ω₂</span> — independent of Rh and Rr individually. Toggle off pure rolling to see slip develop.
+  </div>
+
+</aside>
+</main>
+</div>
+
+<script>
+// ─── STATE ───────────────────────────────────────────────────────────
+let t = 0, playing = true, pureRoll = true;
+let plotHistory = []; // {t, theta}
+const MAX_HIST = 400;
+
+// ─── ELEMENTS ────────────────────────────────────────────────────────
+const mechC   = document.getElementById('mechCanvas');
+const slipC   = document.getElementById('slipCanvas');
+const plotC   = document.getElementById('plotCanvas');
+const mCtx    = mechC.getContext('2d');
+const sCtx    = slipC.getContext('2d');
+const pCtx    = plotC.getContext('2d');
+
+// ─── PARAMS ──────────────────────────────────────────────────────────
+function getP() {
+  const Rh = +document.getElementById('s_Rh').value;
+  let   Rr = +document.getElementById('s_Rr').value;
+  if (Rr >= Rh) Rr = Rh - 5;
+  const w1 = +document.getElementById('s_w1').value;
+  const w2 = +document.getElementById('s_w2').value;
+  const thdot_manual = +document.getElementById('s_thdot').value;
+  const thdot = pureRoll ? (w1 + w2) : thdot_manual;
+  return { Rh, Rr, w1, w2, thdot,
+           ecc: Rh - Rr,   // D-to-C distance
+           OmA: w1 + w2 };
+}
+
+function updateSliderDisplays(p) {
+  document.getElementById('v_w1').textContent    = p.w1.toFixed(1);
+  document.getElementById('v_w2').textContent    = p.w2.toFixed(1);
+  document.getElementById('v_Rh').textContent    = p.Rh;
+  document.getElementById('v_Rr').textContent    = p.Rr;
+  document.getElementById('v_thdot').textContent = p.thdot.toFixed(1);
+  // dim manual slider when pure roll
+  document.getElementById('thdot_row').style.opacity = pureRoll ? '0.3' : '1';
+  document.getElementById('s_thdot').disabled = pureRoll;
+}
+
+// ─── TOGGLE ──────────────────────────────────────────────────────────
+function togglePureRoll() {
+  pureRoll = !pureRoll;
+  document.getElementById('pureSwitch').classList.toggle('on', pureRoll);
+}
+function togglePlay() {
+  playing = !playing;
+  const b = document.getElementById('playBtn');
+  b.textContent = playing ? '⏸ PAUSE' : '▶ PLAY';
+  b.classList.toggle('playing', playing);
+}
+function resetTime() {
+  t = 0; plotHistory = [];
+}
+
+// ─── HELPERS ─────────────────────────────────────────────────────────
+function clr(ctx, w, h) { ctx.clearRect(0,0,w,h); }
+
+function circle(ctx, x, y, r, fill, stroke, lw=1.5, alpha=1) {
+  ctx.save(); ctx.globalAlpha=alpha;
+  ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2);
+  if(fill)   { ctx.fillStyle=fill;   ctx.fill(); }
+  if(stroke) { ctx.strokeStyle=stroke; ctx.lineWidth=lw; ctx.stroke(); }
+  ctx.restore();
+}
+
+function dashedCircle(ctx, x, y, r, color, lw=1, dash=[4,4]) {
+  ctx.save(); ctx.strokeStyle=color; ctx.lineWidth=lw;
+  ctx.setLineDash(dash);
+  ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.stroke();
+  ctx.restore();
+}
+
+function line(ctx, x1,y1, x2,y2, color, lw=1, dash=[]) {
+  ctx.save(); ctx.strokeStyle=color; ctx.lineWidth=lw;
+  ctx.setLineDash(dash);
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+  ctx.restore();
+}
+
+function dot(ctx, x, y, r, color, label, labelColor, side='right') {
+  circle(ctx,x,y,r,color,null);
+  if(label) {
+    ctx.save(); ctx.fillStyle=labelColor||color;
+    ctx.font='bold 11px DM Mono';
+    ctx.textAlign = side==='right'?'left':'right';
+    ctx.fillText(label, x+(side==='right'?r+4:-(r+4)), y+4);
+    ctx.restore();
+  }
+}
+
+function arc(ctx, x,y,r, a0, a1, color, lw, dash=[]) {
+  ctx.save(); ctx.strokeStyle=color; ctx.lineWidth=lw;
+  ctx.setLineDash(dash);
+  ctx.beginPath(); ctx.arc(x,y,r,a0,a1); ctx.stroke();
+  ctx.restore();
+}
+
+// ─── DRAW MECHANISM ──────────────────────────────────────────────────
+function drawMech(p) {
+  const W = mechC.width, H = mechC.height;
+  clr(mCtx, W, H);
+
+  // Centre layout: D at (cx,cy). C orbits at ecc.
+  // We want disc A to fit. Disc A is drawn as a large circle of radius Rh centred at C.
+  // We need cx such that everything fits.
+  const margin = 30;
+  const maxRadius = p.ecc + p.Rh + 10;
+  const cx = W/2, cy = H/2;
+  const scale = Math.min(1, (Math.min(W,H)/2 - margin) / maxRadius);
+  const ecc = p.ecc * scale, Rh = p.Rh * scale, Rr = p.Rr * scale;
+
+  // Angles
+  const phiC  = p.w2 * t;                // angle of C about D (revolution)
+  const phiA  = (p.w1 + p.w2) * t;      // absolute angle of A about D
+  const thetaB = p.thdot * t;            // angle of B about D
+
+  // Positions
+  const Cx = cx + ecc * Math.cos(phiC);
+  const Cy = cy + ecc * Math.sin(phiC);
+
+  // Contact point: on the line from D toward C, at distance Rr from D
+  const dc = Math.hypot(Cx-cx, Cy-cy) || 1;
+  const ucx = (Cx-cx)/dc, ucy = (Cy-cy)/dc;
+  const contX = cx + Rr * ucx;
+  const contY = cy + Rr * ucy;
+
+  // ── Orbit guide ──
+  dashedCircle(mCtx, cx, cy, ecc, '#1e2535', 1, [3,3]);
+
+  // ── Disc A (large amber disc with hole) ──
+  // Draw as filled amber disc then cut out the hole via compositing
+  mCtx.save();
+  mCtx.globalAlpha = 0.18;
+  mCtx.beginPath(); mCtx.arc(Cx, Cy, Rh, 0, Math.PI*2);
+  mCtx.fillStyle = '#f59e0b'; mCtx.fill();
+  mCtx.restore();
+
+  // Disc A border
+  circle(mCtx, Cx, Cy, Rh, null, '#f59e0b88', 2);
+
+  // Hole of A — cut visually by drawing the interior surface
+  circle(mCtx, Cx, Cy, Rh, null, '#f59e0b', 1.5);
+
+  // Marker on A's hole wall: a small dot that rotates with A at angle phiA
+  const mAx = Cx + Rh * Math.cos(phiA);
+  const mAy = Cy + Rh * Math.sin(phiA);
+  circle(mCtx, mAx, mAy, 5, '#f59e0b', '#07090f', 1.5);
+
+  // Rotation indicator arc on A
+  mCtx.save();
+  mCtx.strokeStyle = '#f59e0b66'; mCtx.lineWidth=1.5;
+  mCtx.setLineDash([4,3]);
+  mCtx.beginPath(); mCtx.arc(Cx, Cy, Rh*0.6, phiA-0.8, phiA, false);
+  mCtx.stroke(); mCtx.restore();
+
+  // A spin label
+  mCtx.save();
+  mCtx.fillStyle='#f59e0b'; mCtx.font='10px DM Mono'; mCtx.textAlign='center';
+  mCtx.fillText('A', Cx, Cy-4);
+  mCtx.fillText('ω₁+ω₂', Cx, Cy+8);
+  mCtx.restore();
+
+  // ── Shaft B (emerald, centred at D, radius Rr) ──
+  // Fill interior
+  circle(mCtx, cx, cy, Rr, '#34d39922', '#34d399', 2);
+
+  // Marker on B's surface: small dot rotating at thetaB
+  const mBx = cx + Rr * Math.cos(thetaB);
+  const mBy = cy + Rr * Math.sin(thetaB);
+  circle(mCtx, mBx, mBy, 5, '#34d399', '#07090f', 1.5);
+
+  // Rotation indicator arc on B
+  mCtx.save();
+  mCtx.strokeStyle='#34d39966'; mCtx.lineWidth=1.5; mCtx.setLineDash([4,3]);
+  mCtx.beginPath(); mCtx.arc(cx, cy, Rr*0.55, thetaB-0.8, thetaB, false);
+  mCtx.stroke(); mCtx.restore();
+
+  // B label
+  mCtx.save();
+  mCtx.fillStyle='#34d399'; mCtx.font='10px DM Mono'; mCtx.textAlign='center';
+  mCtx.fillText('B', cx, cy+4);
+  mCtx.restore();
+
+  // ── Line from D to C (eccentricity arm) ──
+  line(mCtx, cx, cy, Cx, Cy, '#38bdf855', 1, [3,3]);
+
+  // ── Shaft C ──
+  circle(mCtx, Cx, Cy, 5, '#38bdf8', null);
+  dot(mCtx, Cx, Cy, 0, null, 'C', '#38bdf8', 'right');
+  mCtx.save();
+  mCtx.fillStyle='#38bdf8'; mCtx.font='10px DM Mono';
+  mCtx.fillText('ω₂', Cx+8, Cy+14);
+  mCtx.restore();
+
+  // ── Contact point ──
+  circle(mCtx, contX, contY, 7, '#f472b6', '#07090f', 1.5);
+  // Radial line from D through contact to C
+  line(mCtx, cx, cy, Cx, Cy, '#f472b688', 1.5);
+  mCtx.save();
+  mCtx.fillStyle='#f472b6'; mCtx.font='9px DM Mono';
+  mCtx.fillText('contact', contX+10, contY-6);
+  mCtx.restore();
+
+  // ── Shaft D ──
+  circle(mCtx, cx, cy, 9, '#e2e8f0', '#07090f', 1.5);
+  circle(mCtx, cx, cy, 3, '#07090f', null);
+  dot(mCtx, cx, cy, 0, null, 'D', '#e2e8f0', 'left');
+
+  // ── Dimension labels ──
+  // Rr from D to contact
+  mCtx.save();
+  mCtx.strokeStyle='#34d39944'; mCtx.lineWidth=1; mCtx.setLineDash([2,2]);
+  mCtx.beginPath(); mCtx.moveTo(cx, cy+12); mCtx.lineTo(contX, contY+12);
+  mCtx.stroke();
+  mCtx.fillStyle='#34d39988'; mCtx.font='9px DM Mono'; mCtx.textAlign='center';
+  mCtx.fillText('Rr', (cx+contX)/2, cy+22);
+  mCtx.restore();
+
+  // ecc = Rh-Rr from D to C
+  const midEx = (cx+Cx)/2, midEy = (cy+Cy)/2;
+  mCtx.save();
+  mCtx.fillStyle='#38bdf866'; mCtx.font='9px DM Mono'; mCtx.textAlign='center';
+  mCtx.fillText('Rh−Rr', midEx, midEy-7);
+  mCtx.restore();
+}
+
+// ─── DRAW SLIP TRACKER ───────────────────────────────────────────────
+// Shows A's hole wall "unrolled" as a horizontal line and
+// marks where the contact point is — shows relative slip between A and B
+function drawSlip(p) {
+  const W = slipC.width, H = slipC.height;
+  clr(sCtx, W, H);
+
+  const phiA   = (p.w1 + p.w2) * t;  // absolute angle of A about D
+  const thetaB = p.thdot * t;         // B angle about D
+
+  // --- Top half: A's hole wall viewed from D ---
+  // The contact point is always in the D→C direction.
+  // The angle of the contact on A's hole wall (in A's frame) = phiA (contact point seen from A's centre C,
+  // but the contact direction from D is phiC = w2*t, so in A's frame it's phiC - phiA = -w1*t)
+  const AholeAngle = p.w2 * t - phiA;  // = -w1*t
+  const BsurfAngle = p.w2 * t - thetaB; // contact angle in B's frame
+
+  const CX = W/2, CY1 = H/4, CY2 = 3*H/4;
+  const R1 = Math.min(80, (H/4)-20), R2 = Math.min(50, (H/4)-20);
+
+  // ── A's hole wall ──
+  mCtx.save();
+  sCtx.save();
+  sCtx.strokeStyle='#f59e0b44'; sCtx.lineWidth=18; sCtx.setLineDash([]);
+  sCtx.beginPath(); sCtx.arc(CX, CY1, R1, 0, Math.PI*2); sCtx.stroke();
+  sCtx.restore();
+  circle(sCtx, CX, CY1, R1, null, '#f59e0b', 1.5);
+
+  // Marker on A's hole wall
+  const mAx2 = CX + R1 * Math.cos(AholeAngle);
+  const mAy2 = CY1 + R1 * Math.sin(AholeAngle);
+  circle(sCtx, mAx2, mAy2, 7, '#f59e0b', '#07090f', 1.5);
+
+  // Contact mark on A's hole wall (where contact currently is, in A's frame)
+  circle(sCtx, CX+R1, CY1, 4, '#f472b6', null);
+
+  sCtx.save();
+  sCtx.fillStyle='#f59e0b'; sCtx.font='11px DM Mono'; sCtx.textAlign='center';
+  sCtx.fillText("A's hole wall", CX, CY1-R1-8);
+  sCtx.fillStyle='#e2e8f066'; sCtx.font='9px DM Mono';
+  sCtx.fillText('marker rotates at −ω₁ (in A frame)', CX, CY1+R1+14);
+  sCtx.restore();
+
+  // ── B's surface ──
+  sCtx.save();
+  sCtx.strokeStyle='#34d39944'; sCtx.lineWidth=14; sCtx.setLineDash([]);
+  sCtx.beginPath(); sCtx.arc(CX, CY2, R2, 0, Math.PI*2); sCtx.stroke();
+  sCtx.restore();
+  circle(sCtx, CX, CY2, R2, null, '#34d399', 1.5);
+
+  // Marker on B's surface
+  const mBx2 = CX + R2 * Math.cos(BsurfAngle);
+  const mBy2 = CY2 + R2 * Math.sin(BsurfAngle);
+  circle(sCtx, mBx2, mBy2, 7, '#34d399', '#07090f', 1.5);
+
+  // Contact mark on B's surface
+  circle(sCtx, CX+R2, CY2, 4, '#f472b6', null);
+
+  sCtx.save();
+  sCtx.fillStyle='#34d399'; sCtx.font='11px DM Mono'; sCtx.textAlign='center';
+  sCtx.fillText("B's surface", CX, CY2-R2-8);
+  sCtx.fillStyle='#e2e8f066'; sCtx.font='9px DM Mono';
+  sCtx.fillText('marker rotates at ω₂−θ̇ (in contact frame)', CX, CY2+R2+14);
+  sCtx.restore();
+
+  // ── Slip indicator in the middle ──
+  const slipVel = (p.OmA - p.thdot) * p.Rr;
+  const mid = (CY1+R1+CY2-R2)/2;
+  sCtx.save();
+  sCtx.fillStyle = Math.abs(slipVel)<0.01 ? '#4ade80' : '#f87171';
+  sCtx.font='bold 11px DM Mono'; sCtx.textAlign='center';
+  sCtx.fillText(Math.abs(slipVel)<0.01 ? '✓ NO SLIP' : `slip = ${slipVel.toFixed(2)} px/s`, CX, mid);
+  sCtx.restore();
+
+  // ── Alignment indicator: draw line from contact dot on A to contact dot on B ──
+  // If aligned → markers are at same angular position → no slip
+  const alignA = { x: CX + R1*Math.cos(AholeAngle), y: CY1 + R1*Math.sin(AholeAngle) };
+  const alignB = { x: CX + R2*Math.cos(BsurfAngle), y: CY2 + R2*Math.sin(BsurfAngle) };
+  const aligned = Math.abs(slipVel) < 0.01;
+  sCtx.save();
+  sCtx.strokeStyle = aligned ? '#4ade8066' : '#f8717166';
+  sCtx.lineWidth=1; sCtx.setLineDash([3,3]);
+  sCtx.beginPath(); sCtx.moveTo(alignA.x, alignA.y+7); sCtx.lineTo(alignB.x, alignB.y-7);
+  sCtx.stroke(); sCtx.restore();
+}
+
+// ─── DRAW θ(t) PLOT ──────────────────────────────────────────────────
+function drawPlot(p) {
+  const W = plotC.width, H = plotC.height;
+  clr(pCtx, W, H);
+
+  const pad={l:48,r:16,t:12,b:30};
+  const pw=W-pad.l-pad.r, ph=H-pad.t-pad.b;
+
+  // Axes
+  pCtx.strokeStyle='#1e2535'; pCtx.lineWidth=1; pCtx.setLineDash([]);
+  pCtx.beginPath();
+  pCtx.moveTo(pad.l,pad.t); pCtx.lineTo(pad.l,pad.t+ph);
+  pCtx.lineTo(pad.l+pw,pad.t+ph); pCtx.stroke();
+
+  // Labels
+  pCtx.fillStyle='#64748b'; pCtx.font='9px DM Mono'; pCtx.textAlign='right';
+  pCtx.fillText('θ(t)', pad.l-4, pad.t+8);
+  pCtx.textAlign='center';
+  pCtx.fillText('time →', pad.l+pw/2, H-4);
+
+  if(plotHistory.length < 2) return;
+
+  const tMax = plotHistory[plotHistory.length-1].t;
+  const tMin = Math.max(0, tMax - 10); // show last 10s
+  const thetas = plotHistory.filter(d=>d.t>=tMin).map(d=>d.theta);
+  const thetaMin = Math.min(...thetas);
+  const thetaMax = Math.max(...thetas);
+  const thetaRange = thetaMax - thetaMin || 1;
+  const tRange = tMax - tMin || 1;
+
+  // Grid lines
+  pCtx.save(); pCtx.strokeStyle='#1e2535'; pCtx.lineWidth=0.5; pCtx.setLineDash([3,3]);
+  for(let i=1;i<4;i++) {
+    const y=pad.t+ph*i/4;
+    pCtx.beginPath(); pCtx.moveTo(pad.l,y); pCtx.lineTo(pad.l+pw,y); pCtx.stroke();
+  }
+  pCtx.restore();
+
+  // Theoretical line: θ = (ω1+ω2)*t (always draw)
+  pCtx.save(); pCtx.strokeStyle='#f59e0b44'; pCtx.lineWidth=1.5; pCtx.setLineDash([4,3]);
+  pCtx.beginPath();
+  plotHistory.filter(d=>d.t>=tMin).forEach((d,i)=>{
+    const x=pad.l+pw*(d.t-tMin)/tRange;
+    const theory=(p.w1+p.w2)*d.t;
+    const y=pad.t+ph*(1-(theory-thetaMin)/thetaRange);
+    i===0?pCtx.moveTo(x,y):pCtx.lineTo(x,y);
+  });
+  pCtx.stroke(); pCtx.restore();
+
+  // Actual θ(t) curve
+  pCtx.save(); pCtx.strokeStyle=pureRoll?'#34d399':'#f87171'; pCtx.lineWidth=2; pCtx.setLineDash([]);
+  pCtx.beginPath();
+  plotHistory.filter(d=>d.t>=tMin).forEach((d,i)=>{
+    const x=pad.l+pw*(d.t-tMin)/tRange;
+    const y=pad.t+ph*(1-(d.theta-thetaMin)/thetaRange);
+    i===0?pCtx.moveTo(x,y):pCtx.lineTo(x,y);
+  });
+  pCtx.stroke(); pCtx.restore();
+
+  // Legend
+  pCtx.save(); pCtx.font='9px DM Mono'; pCtx.textAlign='left';
+  pCtx.fillStyle='#34d399'; pCtx.fillText('— actual θ(t)', pad.l+4, pad.t+14);
+  pCtx.fillStyle='#f59e0b88'; pCtx.fillText('- theory (ω₁+ω₂)t', pad.l+4, pad.t+26);
+  pCtx.restore();
+
+  // Current value dot
+  const lastFilt=plotHistory.filter(d=>d.t>=tMin);
+  if(lastFilt.length>0){
+    const d=lastFilt[lastFilt.length-1];
+    const x=pad.l+pw*(d.t-tMin)/tRange;
+    const y=pad.t+ph*(1-(d.theta-thetaMin)/thetaRange);
+    circle(pCtx,x,y,4,pureRoll?'#34d399':'#f87171',null);
+    pCtx.save();
+    pCtx.fillStyle=pureRoll?'#34d399':'#f87171';
+    pCtx.font='9px DM Mono'; pCtx.textAlign='left';
+    pCtx.fillText(d.theta.toFixed(2)+' rad', Math.min(x+6, pad.l+pw-60), y-6);
+    pCtx.restore();
+  }
+}
+
+// ─── UPDATE EQUATIONS ────────────────────────────────────────────────
+function updateEq(p) {
+  const slipV = (p.OmA - p.thdot) * p.Rr;
+  document.getElementById('eq_OmA').textContent    = p.OmA.toFixed(2)+' rad/s';
+  document.getElementById('eq_thdot').textContent  = p.thdot.toFixed(2)+' rad/s';
+  document.getElementById('eq_theta').textContent  = (p.thdot*t).toFixed(2)+' rad';
+  document.getElementById('eq_slip').textContent   = slipV.toFixed(3)+' px/s';
+  document.getElementById('eq_slip').style.color   = Math.abs(slipV)<0.01?'var(--roll)':'var(--slip)';
+
+  const badge = document.getElementById('slipBadge');
+  if(Math.abs(slipV)<0.01){
+    badge.textContent='✓ Pure rolling — no slip';
+    badge.className='badge roll';
+  } else {
+    badge.textContent=`✗ Sliding — slip = ${slipV.toFixed(2)} px/s`;
+    badge.className='badge slip';
+  }
+  updateSliderDisplays(p);
+}
+
+// ─── RESIZE CANVASES ─────────────────────────────────────────────────
+function resizeCanvases() {
+  // mech canvas: fill its card
+  const mc = mechC.parentElement;
+  mechC.width  = mc.clientWidth;
+  mechC.height = 380;
+  // slip canvas
+  const sc = slipC.parentElement;
+  slipC.width  = sc.clientWidth;
+  slipC.height = 380;
+  // plot canvas
+  const pc = plotC.parentElement;
+  plotC.width  = pc.clientWidth;
+  plotC.height = 140;
+}
+
+// ─── MAIN LOOP ───────────────────────────────────────────────────────
+const DT = 1/60;
+let last=null;
+
+function frame(ts) {
+  if(!last) last=ts;
+  const dt = Math.min((ts-last)/1000, 0.05);
+  last=ts;
+
+  if(playing) t += dt;
+
+  const p = getP();
+
+  // Record plot history
+  plotHistory.push({t, theta: p.thdot * t});
+  if(plotHistory.length > MAX_HIST) plotHistory.shift();
+
+  resizeCanvases();
+  drawMech(p);
+  drawSlip(p);
+  drawPlot(p);
+  updateEq(p);
+
+  requestAnimationFrame(frame);
+}
+
+// ─── SLIDER EVENTS ───────────────────────────────────────────────────
+['s_w1','s_w2','s_Rh','s_Rr','s_thdot'].forEach(id=>{
+  document.getElementById(id).addEventListener('input', ()=>{
+    plotHistory=[];
+    t=0;
+  });
+});
+
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>
