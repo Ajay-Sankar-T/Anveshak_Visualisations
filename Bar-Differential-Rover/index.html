@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Bar Differential Rover — Q3 Visualisation</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; background: #f9f9f7; color: #1a1a18; padding: 24px 16px; }
+  h1 { font-size: 18px; font-weight: 500; margin-bottom: 20px; }
+  .tabs { display:flex; gap:4px; margin-bottom:20px; flex-wrap:wrap; }
+  .tab { padding:6px 14px; border-radius:8px; border:0.5px solid #ccc; background:transparent; color:#666; font-size:13px; cursor:pointer; transition:all .15s; }
+  .tab.active { background:#f0f0ee; color:#1a1a18; border-color:#999; font-weight:500; }
+  .panel { display:none; }
+  .panel.active { display:block; }
+  .ctrl-row { display:flex; align-items:center; gap:10px; margin:10px 0; font-size:13px; color:#666; }
+  .ctrl-row label { min-width:100px; }
+  .ctrl-row input[type=range] { flex:1; }
+  .ctrl-row .val { min-width:50px; text-align:right; font-weight:500; color:#1a1a18; }
+  .result-box { margin:14px 0; padding:10px 14px; background:#f0f0ee; border-radius:8px; font-size:13px; }
+  .result-box .eq { font-family: monospace; font-size:14px; color:#185fa5; font-weight:500; margin:4px 0; }
+  .result-box .label { color:#666; font-size:12px; }
+  .metric-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; margin:14px 0; }
+  .metric { padding:10px 12px; background:#f0f0ee; border-radius:8px; }
+  .metric .mv { font-size:18px; font-weight:500; color:#1a1a18; }
+  .metric .ml { font-size:11px; color:#666; margin-top:3px; }
+  .info-row { font-size:12px; color:#666; margin:6px 0; }
+  .badge { display:inline-block; font-size:11px; padding:2px 8px; border-radius:8px; background:#e6f1fb; color:#185fa5; }
+  svg text { font-family: system-ui, sans-serif; }
+
+  @media (prefers-color-scheme: dark) {
+    body { background: #1a1a18; color: #e0dfd8; }
+    .tab { border-color:#444; color:#aaa; }
+    .tab.active { background:#2a2a28; color:#e0dfd8; border-color:#888; }
+    .result-box, .metric { background:#2a2a28; }
+    .result-box .eq { color:#85b7eb; }
+    .result-box .label, .metric .ml, .info-row, .ctrl-row { color:#aaa; }
+    .ctrl-row .val, .metric .mv { color:#e0dfd8; }
+    .badge { background:#0c447c; color:#85b7eb; }
+  }
+</style>
+</head>
+<body>
+<h1>Question 3 — Bar Differential Rover</h1>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('q1')">Q3.1 — Bar angle relationship</button>
+  <button class="tab" onclick="switchTab('q2')">Q3.2 — Reaction forces</button>
+  <button class="tab" onclick="switchTab('q3')">Q3.3 — Stress in rocker</button>
+</div>
+
+<!-- Q3.1 -->
+<div id="q1" class="panel active">
+  <svg width="100%" viewBox="0 0 680 320" id="svg-q1">
+    <defs>
+      <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </marker>
+    </defs>
+    <line x1="40" y1="270" x2="640" y2="270" stroke="#ccc" stroke-width="1" stroke-dasharray="4 3"/>
+    <rect id="chassis" x="200" y="90" width="280" height="50" rx="6" fill="#f0f0ee" stroke="#888" stroke-width="1"/>
+    <text x="340" y="120" text-anchor="middle" font-size="12" fill="#666">chassis</text>
+    <line id="lrocker-line" x1="220" y1="140" x2="160" y2="220" stroke="#3B8BD4" stroke-width="2.5" stroke-linecap="round"/>
+    <circle cx="220" cy="140" r="4" fill="#3B8BD4"/>
+    <circle id="lwheel" cx="160" cy="220" r="8" fill="none" stroke="#3B8BD4" stroke-width="2"/>
+    <line id="rrocker-line" x1="460" y1="140" x2="520" y2="220" stroke="#E24B4A" stroke-width="2.5" stroke-linecap="round"/>
+    <circle cx="460" cy="140" r="4" fill="#E24B4A"/>
+    <circle id="rwheel" cx="520" cy="220" r="8" fill="none" stroke="#E24B4A" stroke-width="2"/>
+    <line id="bar-line" x1="220" y1="80" x2="460" y2="80" stroke="#1D9E75" stroke-width="3" stroke-linecap="round"/>
+    <circle id="pivot" cx="340" cy="80" r="5" fill="#1D9E75"/>
+    <line id="lrod" x1="220" y1="140" x2="220" y2="80" stroke="#1D9E75" stroke-width="1.5" stroke-dasharray="4 3"/>
+    <line id="rrod" x1="460" y1="140" x2="460" y2="80" stroke="#1D9E75" stroke-width="1.5" stroke-dasharray="4 3"/>
+    <text x="185" y="242" font-size="12" fill="#3B8BD4">αL</text>
+    <text x="543" y="242" font-size="12" fill="#E24B4A">αR</text>
+    <text id="lbl-b" x="340" y="68" text-anchor="middle" font-size="12" fill="#1D9E75">β</text>
+    <rect x="490" y="20" width="175" height="50" rx="6" fill="#f0f0ee" stroke="#ddd" stroke-width="0.5"/>
+    <text x="577" y="40" text-anchor="middle" font-size="12" fill="#666">β = (7/12)(αR − αL)</text>
+    <text id="beta-num" x="577" y="60" text-anchor="middle" font-size="13" font-weight="500" fill="#1D9E75">β = 0.0°</text>
+  </svg>
+  <div class="ctrl-row"><label>αL — left rocker (°)</label><input type="range" min="-30" max="30" value="0" id="al-slider" oninput="updateQ1()"><span class="val" id="al-out">0°</span></div>
+  <div class="ctrl-row"><label>αR — right rocker (°)</label><input type="range" min="-30" max="30" value="0" id="ar-slider" oninput="updateQ1()"><span class="val" id="ar-out">0°</span></div>
+  <div class="result-box">
+    <div class="label">Derived relationship (small-angle approx.)</div>
+    <div class="eq">β = (lᵣ / 2d) × (αR − αL) = (7/12)(αR − αL)</div>
+    <div class="label" style="margin-top:6px">lᵣ = 35 cm &nbsp;|&nbsp; d = 30 cm (half-bar) &nbsp;|&nbsp; lc = 20 cm</div>
+    <div id="q1-interp" style="margin-top:8px;font-size:12px;color:#666">Both rockers at same angle → bar horizontal.</div>
+  </div>
+</div>
+
+<!-- Q3.2 -->
+<div id="q2" class="panel">
+  <svg width="100%" viewBox="0 0 680 320">
+    <defs>
+      <marker id="arr2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </marker>
+    </defs>
+    <polygon points="60,260 200,260 200,170" fill="#f0f0ee" stroke="#888" stroke-width="0.5"/>
+    <text x="85" y="250" font-size="11" fill="#666">30°</text>
+    <polygon points="480,260 620,260 480,170" fill="#f0f0ee" stroke="#888" stroke-width="0.5"/>
+    <text x="590" y="250" font-size="11" fill="#666">30°</text>
+    <rect x="200" y="130" width="280" height="45" rx="6" fill="#fff" stroke="#888" stroke-width="1" transform="rotate(-30,340,155)"/>
+    <text x="340" y="155" text-anchor="middle" font-size="12" fill="#666" transform="rotate(-30,340,155)">chassis (50 kg)</text>
+    <circle cx="315" cy="143" r="6" fill="#E24B4A" opacity=".85"/>
+    <text x="317" y="126" font-size="11" fill="#E24B4A">COM (−5 cm x)</text>
+    <line x1="315" y1="143" x2="315" y2="200" stroke="#E24B4A" stroke-width="2" marker-end="url(#arr2)"/>
+    <text x="325" y="185" font-size="11" fill="#E24B4A">W = 500 N</text>
+    <line x1="220" y1="103" x2="460" y2="103" stroke="#1D9E75" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="340" cy="103" r="5" fill="#1D9E75"/>
+    <text x="340" y="94" text-anchor="middle" font-size="11" fill="#1D9E75">pivot</text>
+    <line x1="220" y1="103" x2="220" y2="65" stroke="#3B8BD4" stroke-width="2" marker-end="url(#arr2)"/>
+    <text x="175" y="60" font-size="11" fill="#3B8BD4">FL = 250 N ↑</text>
+    <line x1="460" y1="103" x2="460" y2="65" stroke="#3B8BD4" stroke-width="2" marker-end="url(#arr2)"/>
+    <text x="462" y="60" font-size="11" fill="#3B8BD4">FR = 250 N ↑</text>
+    <line x1="340" y1="103" x2="340" y2="141" stroke="#E24B4A" stroke-width="2" marker-end="url(#arr2)"/>
+    <text x="350" y="138" font-size="11" fill="#E24B4A">FP = 500 N ↓</text>
+    <line x1="340" y1="103" x2="380" y2="103" stroke="#BA7517" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arr2)"/>
+    <text x="385" y="100" font-size="11" fill="#BA7517">FP,y ~ 250 N</text>
+  </svg>
+  <div class="metric-grid">
+    <div class="metric"><div class="mv">250 N ↑</div><div class="ml">Left bar end (FL,z)</div></div>
+    <div class="metric"><div class="mv">250 N ↑</div><div class="ml">Right bar end (FR,z)</div></div>
+    <div class="metric"><div class="mv">500 N ↓</div><div class="ml">Pivot vertical (FP,z)</div></div>
+  </div>
+  <div class="result-box">
+    <div class="label">Force vectors</div>
+    <div class="eq">F_left  = (0, 0, +250) N</div>
+    <div class="eq">F_right = (0, 0, +250) N</div>
+    <div class="eq">F_pivot ≈ (0, +250, −500) N</div>
+    <div class="info-row" style="margin-top:8px">Bar differential equalises vertical loads regardless of COM x-offset. Lateral component (~W sin30° = 250 N) at pivot balances sideways wedge tilt.</div>
+  </div>
+</div>
+
+<!-- Q3.3 -->
+<div id="q3" class="panel">
+  <div class="ctrl-row"><label>Mass M (kg)</label><input type="range" min="10" max="200" value="50" id="mass-sl" oninput="updateQ3()"><span class="val" id="mass-out">50</span></div>
+  <div class="ctrl-row"><label>Radius R (m)</label><input type="range" min="5" max="100" value="30" id="rad-sl" oninput="updateQ3()"><span class="val" id="rad-out">30</span></div>
+  <div class="ctrl-row"><label>Speed v (m/s)</label><input type="range" min="0" max="20" value="5" id="vel-sl" oninput="updateQ3()"><span class="val" id="vel-out">5</span></div>
+  <div class="ctrl-row"><label>Bank α (°)</label><input type="range" min="0" max="45" value="20" id="bank-sl" oninput="updateQ3()"><span class="val" id="bank-out">20</span></div>
+  <div class="ctrl-row"><label>Section b (cm)</label><input type="range" min="2" max="10" value="5" id="b-sl" oninput="updateQ3()"><span class="val" id="b-out">5</span></div>
+  <div class="ctrl-row"><label>Section d (cm)</label><input type="range" min="2" max="10" value="5" id="d-sl" oninput="updateQ3()"><span class="val" id="d-out">5</span></div>
+  <div class="metric-grid" id="q3-metrics"></div>
+  <div class="result-box" id="q3-result"></div>
+  <svg width="100%" viewBox="0 0 680 280">
+    <defs>
+      <marker id="arr3" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </marker>
+    </defs>
+    <polygon points="40,240 400,240 480,160 120,160" fill="#f0f0ee" stroke="#ccc" stroke-width="0.5"/>
+    <text x="50" y="235" font-size="11" fill="#666">banked surface α</text>
+    <rect x="140" y="142" width="160" height="30" rx="4" fill="#fff" stroke="#888" stroke-width="1" transform="rotate(-26,220,157)"/>
+    <line x1="286" y1="115" x2="326" y2="170" stroke="#E24B4A" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="286" cy="115" r="4" fill="#E24B4A"/>
+    <circle cx="326" cy="170" r="7" fill="none" stroke="#E24B4A" stroke-width="2"/>
+    <text x="342" y="144" font-size="11" fill="#E24B4A">outer rocker</text>
+    <line x1="326" y1="170" x2="306" y2="130" stroke="#3B8BD4" stroke-width="1.5" marker-end="url(#arr3)"/>
+    <text x="270" y="126" font-size="11" fill="#3B8BD4">Nmax</text>
+    <circle cx="286" cy="115" r="7" fill="none" stroke="#E24B4A" stroke-width="1.5" stroke-dasharray="3 2"/>
+    <text x="220" y="108" font-size="11" fill="#E24B4A">max stress @ pivot</text>
+    <rect x="490" y="80" width="44" height="60" rx="2" fill="#f0f0ee" stroke="#E24B4A" stroke-width="1"/>
+    <text x="512" y="155" text-anchor="middle" font-size="11" fill="#666">b × d</text>
+    <text x="490" y="75" font-size="11" fill="#666">cross-section</text>
+    <rect x="490" y="80" width="44" height="6" rx="2" fill="#E24B4A" opacity=".55"/>
+    <text x="540" y="88" font-size="10" fill="#E24B4A">tension fibre</text>
+    <line x1="450" y1="160" x2="530" y2="160" stroke="#1D9E75" stroke-width="1.5" marker-end="url(#arr3)"/>
+    <text x="453" y="178" font-size="11" fill="#1D9E75">centripetal Fc = Mv²/R</text>
+    <path d="M 450 240 A 80 80 0 0 1 560 200" fill="none" stroke="#ccc" stroke-width="0.5" stroke-dasharray="5 4"/>
+    <text x="560" y="214" font-size="11" fill="#999">R</text>
+  </svg>
+</div>
+
+<script>
+function switchTab(id) {
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', ['q1','q2','q3'][i]===id));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function toRad(d){ return d * Math.PI / 180; }
+
+function updateQ1(){
+  const al = parseFloat(document.getElementById('al-slider').value);
+  const ar = parseFloat(document.getElementById('ar-slider').value);
+  document.getElementById('al-out').textContent = al + '°';
+  document.getElementById('ar-out').textContent = ar + '°';
+  const lr = 35, d = 30;
+  const beta = (lr / (2 * d)) * (ar - al);
+  document.getElementById('beta-num').textContent = 'β = ' + beta.toFixed(2) + '°';
+
+  const alR = toRad(al), arR = toRad(ar);
+  const wheelLy = 220 + lr * Math.sin(alR) * 2;
+  const wheelRy = 220 - lr * Math.sin(arR) * 2;
+  const wheelLx = 220 - lr * Math.cos(alR) * 2;
+  const wheelRx = 520 + lr * Math.cos(arR) * 2;
+  document.getElementById('lrocker-line').setAttribute('x2', wheelLx);
+  document.getElementById('lrocker-line').setAttribute('y2', wheelLy);
+  document.getElementById('lwheel').setAttribute('cx', wheelLx);
+  document.getElementById('lwheel').setAttribute('cy', wheelLy);
+  document.getElementById('rrocker-line').setAttribute('x2', wheelRx);
+  document.getElementById('rrocker-line').setAttribute('y2', wheelRy);
+  document.getElementById('rwheel').setAttribute('cx', wheelRx);
+  document.getElementById('rwheel').setAttribute('cy', wheelRy);
+
+  const bR = toRad(beta);
+  const barLy = 80 + 120 * Math.sin(bR);
+  const barRy = 80 - 120 * Math.sin(bR);
+  document.getElementById('bar-line').setAttribute('y1', barLy);
+  document.getElementById('bar-line').setAttribute('y2', barRy);
+  document.getElementById('lrod').setAttribute('y2', barLy);
+  document.getElementById('rrod').setAttribute('y2', barRy);
+
+  let txt = '';
+  if (Math.abs(ar - al) < 0.5) txt = 'Both rockers at same angle → bar stays horizontal.';
+  else if (ar > al) txt = 'Right rocker higher than left → bar tilts right end up.';
+  else txt = 'Left rocker higher than right → bar tilts left end up.';
+  document.getElementById('q1-interp').textContent = txt;
+}
+
+function updateQ3(){
+  const M    = parseFloat(document.getElementById('mass-sl').value);
+  const R    = parseFloat(document.getElementById('rad-sl').value);
+  const v    = parseFloat(document.getElementById('vel-sl').value);
+  const aDeg = parseFloat(document.getElementById('bank-sl').value);
+  const bCm  = parseFloat(document.getElementById('b-sl').value);
+  const dCm  = parseFloat(document.getElementById('d-sl').value);
+  document.getElementById('mass-out').textContent = M;
+  document.getElementById('rad-out').textContent  = R;
+  document.getElementById('vel-out').textContent  = v;
+  document.getElementById('bank-out').textContent = aDeg;
+  document.getElementById('b-out').textContent    = bCm;
+  document.getElementById('d-out').textContent    = dCm;
+
+  const g = 10, a = toRad(aDeg);
+  const N      = M * g * Math.cos(a) + M * v * v / R * Math.sin(a);
+  const Nwheel = N / 4;
+  const Nmax   = Nwheel * 1.3;
+  const theta  = toRad(60);
+  const L      = 1.5;
+  const Faxial = Nmax * Math.cos(theta);
+  const Ftrans = Nmax * Math.sin(theta);
+  const Mmax   = Ftrans * L;
+  const b = bCm / 100, d = dCm / 100;
+  const sigBend  = 6 * Mmax / (b * d * d);
+  const sigAxial = Faxial / (b * d);
+  const sigMax   = sigBend + sigAxial;
+
+  document.getElementById('q3-metrics').innerHTML = `
+    <div class="metric"><div class="mv">${N.toFixed(0)} N</div><div class="ml">Total normal N</div></div>
+    <div class="metric"><div class="mv">${Nmax.toFixed(0)} N</div><div class="ml">Outer wheel load</div></div>
+    <div class="metric"><div class="mv">${(sigMax/1e3).toFixed(1)} kPa</div><div class="ml">σ_max at pivot</div></div>
+  `;
+  document.getElementById('q3-result').innerHTML = `
+    <div class="label">Stress breakdown at chassis pivot of outer rocker</div>
+    <div class="eq">N = M(g cosα + v²/R sinα) = ${N.toFixed(1)} N</div>
+    <div class="eq">M_max = F_trans × L = ${Mmax.toFixed(1)} N·m</div>
+    <div class="eq">σ_bending = 6M/(bd²) = ${(sigBend/1e3).toFixed(1)} kPa</div>
+    <div class="eq">σ_axial = F_axial/(bd) = ${(sigAxial/1e3).toFixed(1)} kPa</div>
+    <div class="eq" style="border-top:0.5px solid #ccc;padding-top:6px;margin-top:6px">σ_max = ${(sigMax/1e3).toFixed(1)} kPa &nbsp;<span class="badge">at pivot, tension fibre</span></div>
+    <div class="info-row" style="margin-top:8px">Location: chassis pivot end of the outer (uphill) rocker link, extreme fibre on the tension side.</div>
+  `;
+}
+
+updateQ1();
+updateQ3();
+</script>
+</body>
+</html>
