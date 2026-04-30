@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gear Problem Calculator — Question 5</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, sans-serif; background: #f5f5f2; color: #1a1a18; padding: 24px 16px; line-height: 1.6; }
+  h1 { font-size: 20px; font-weight: 500; margin-bottom: 20px; }
+  .tab-bar { display: flex; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+  .tab { padding: 6px 14px; border: 1px solid #ccc; border-radius: 8px; cursor: pointer; font-size: 13px; color: #555; background: transparent; transition: all .15s; }
+  .tab.active { background: #e8e8e4; color: #111; border-color: #999; font-weight: 500; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+  .row { display: flex; gap: 12px; margin-bottom: 12px; align-items: flex-end; flex-wrap: wrap; }
+  .field { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 80px; }
+  .field label { font-size: 12px; color: #666; }
+  .field input { width: 100%; padding: 7px 10px; border: 1px solid #ccc; border-radius: 8px; font-size: 14px; background: #fff; color: #111; outline: none; }
+  .field input:focus { border-color: #888; box-shadow: 0 0 0 3px rgba(0,0,0,0.07); }
+  .result-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-top: 16px; }
+  .metric { background: #eceae4; border-radius: 8px; padding: 12px 14px; }
+  .metric .label { font-size: 12px; color: #666; margin-bottom: 4px; }
+  .metric .value { font-size: 22px; font-weight: 500; color: #111; }
+  .metric .unit { font-size: 12px; color: #666; margin-left: 2px; }
+  .note { font-size: 12px; color: #666; margin-top: 10px; line-height: 1.5; }
+  .planet-select { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+  .planet-btn { padding: 5px 12px; border: 1px solid #ccc; border-radius: 8px; font-size: 12px; cursor: pointer; background: transparent; color: #555; transition: all .15s; }
+  .planet-btn.active { background: #e8e8e4; color: #111; border-color: #999; font-weight: 500; }
+  .step-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+  .step-card { background: #eceae4; border-radius: 8px; padding: 10px 12px; }
+  .step-card .step-label { font-size: 11px; color: #666; margin-bottom: 3px; }
+  .step-card .step-val { font-size: 14px; font-weight: 500; }
+  .divider { border: none; border-top: 1px solid #ddd; margin: 16px 0; }
+  .gear-vis { margin-bottom: 12px; }
+  .card { background: #fff; border-radius: 12px; border: 1px solid #ddd; padding: 20px 24px; max-width: 780px; margin: 0 auto; }
+  .warn { font-size: 12px; color: #c0392b; margin-bottom: 8px; min-height: 16px; }
+  .config-label { font-size: 13px; color: #666; margin-bottom: 12px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>Gear Problem Calculator — Question 5</h1>
+  <div class="tab-bar">
+    <button class="tab active" onclick="switchTab('worm')">Worm gear</button>
+    <button class="tab" onclick="switchTab('planet')">Planetary gear</button>
+    <button class="tab" onclick="switchTab('helical')">Helical gear power</button>
+  </div>
+
+  <!-- WORM GEAR -->
+  <div id="panel-worm" class="panel active">
+    <div class="row">
+      <div class="field"><label>Worm starts (n<sub>s</sub>)</label><input type="number" id="w-ns" value="2" min="1" max="12" oninput="calcWorm()"></div>
+      <div class="field"><label>Wheel teeth (T<sub>w</sub>)</label><input type="number" id="w-tw" value="20" min="6" max="300" oninput="calcWorm()"></div>
+    </div>
+    <div class="gear-vis">
+      <svg width="100%" viewBox="0 0 680 120" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="aw" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M2 1L8 5L2 9" fill="none" stroke="#555" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </marker>
+        </defs>
+        <rect x="40" y="38" width="140" height="44" rx="8" fill="#d4f0e8" stroke="#0f6e56" stroke-width="0.5"/>
+        <text font-family="system-ui,sans-serif" font-size="13" font-weight="500" fill="#085041" x="110" y="56" text-anchor="middle" dominant-baseline="central">Worm (input)</text>
+        <text font-family="system-ui,sans-serif" font-size="11" fill="#0f6e56" x="110" y="72" text-anchor="middle" dominant-baseline="central" id="w-label-in">ns = 2 starts</text>
+        <line x1="180" y1="60" x2="258" y2="60" stroke="#888" stroke-width="1.5" marker-end="url(#aw)" fill="none"/>
+        <text font-family="system-ui,sans-serif" font-size="11" fill="#888" x="220" y="50" text-anchor="middle">mesh</text>
+        <rect x="260" y="38" width="180" height="44" rx="8" fill="#e8e4fc" stroke="#534ab7" stroke-width="0.5"/>
+        <text font-family="system-ui,sans-serif" font-size="13" font-weight="500" fill="#26215c" x="350" y="56" text-anchor="middle" dominant-baseline="central">Wheel (output)</text>
+        <text font-family="system-ui,sans-serif" font-size="11" fill="#534ab7" x="350" y="72" text-anchor="middle" dominant-baseline="central" id="w-label-out">Tw = 20 teeth</text>
+        <line x1="440" y1="60" x2="528" y2="60" stroke="#888" stroke-width="1.5" marker-end="url(#aw)" fill="none"/>
+        <rect x="530" y="38" width="120" height="44" rx="8" fill="#faeeda" stroke="#854f0b" stroke-width="0.5"/>
+        <text font-family="system-ui,sans-serif" font-size="13" font-weight="500" fill="#412402" x="590" y="54" text-anchor="middle" dominant-baseline="central">GR</text>
+        <text font-family="system-ui,sans-serif" font-size="12" fill="#854f0b" x="590" y="71" text-anchor="middle" dominant-baseline="central" id="w-gr-vis">10 : 1</text>
+      </svg>
+    </div>
+    <div class="result-grid">
+      <div class="metric"><div class="label">Gear ratio</div><div class="value" id="w-gr">10<span class="unit">: 1</span></div></div>
+      <div class="metric"><div class="label">Worm turns per wheel rev</div><div class="value" id="w-turns">10</div></div>
+      <div class="metric"><div class="label">Ideal torque multiplication</div><div class="value" id="w-torque">10×</div></div>
+    </div>
+    <p class="note">Formula: GR = T<sub>w</sub> / n<sub>s</sub>. Each worm revolution advances the wheel by n<sub>s</sub> teeth.</p>
+  </div>
+
+  <!-- PLANETARY GEAR -->
+  <div id="panel-planet" class="panel">
+    <div class="row">
+      <div class="field"><label>Sun teeth (T<sub>S</sub>)</label><input type="number" id="p-ts" value="15" min="6" max="100" oninput="calcPlanet()"></div>
+      <div class="field"><label>Planet teeth (T<sub>P</sub>)</label><input type="number" id="p-tp" value="30" min="6" max="150" oninput="calcPlanet()"></div>
+      <div class="field"><label>Ring teeth (T<sub>R</sub>)</label><input type="number" id="p-tr" value="75" min="20" max="300" oninput="calcPlanet()"></div>
+    </div>
+    <p class="warn" id="p-mesh-check"></p>
+    <div class="planet-select">
+      <button class="planet-btn active" onclick="setPlanetMode('a',this)">Ring fixed (a)</button>
+      <button class="planet-btn" onclick="setPlanetMode('b',this)">Sun fixed (b)</button>
+      <button class="planet-btn" onclick="setPlanetMode('c',this)">Carrier fixed (c)</button>
+    </div>
+    <p class="config-label" id="p-config-label"></p>
+    <div class="step-row">
+      <div class="step-card"><div class="step-label">Willis relation</div><div class="step-val" id="p-willis">(ω<sub>R</sub>−ω<sub>C</sub>)/(ω<sub>S</sub>−ω<sub>C</sub>) = −T<sub>S</sub>/T<sub>R</sub></div></div>
+      <div class="step-card"><div class="step-label">Substituted ratio</div><div class="step-val" id="p-ratio-sub">= −1/5</div></div>
+    </div>
+    <div class="result-grid">
+      <div class="metric"><div class="label">Gear ratio (ω<sub>in</sub>/ω<sub>out</sub>)</div><div class="value" id="p-gr">6<span class="unit">: 1</span></div></div>
+      <div class="metric"><div class="label">Direction</div><div class="value" id="p-dir" style="font-size:15px;">Same</div></div>
+      <div class="metric"><div class="label">Torque multiplication</div><div class="value" id="p-torque">6×</div></div>
+    </div>
+    <p class="note" id="p-note"></p>
+  </div>
+
+  <!-- HELICAL GEAR -->
+  <div id="panel-helical" class="panel">
+    <div class="row">
+      <div class="field"><label>Pinion teeth (Z<sub>p</sub>)</label><input type="number" id="h-zp" value="20" min="6" max="100" oninput="calcHelical()"></div>
+      <div class="field"><label>Gear teeth (Z<sub>g</sub>)</label><input type="number" id="h-zg" value="100" min="6" max="400" oninput="calcHelical()"></div>
+      <div class="field"><label>Speed (rpm)</label><input type="number" id="h-np" value="720" min="1" max="10000" oninput="calcHelical()"></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>Normal module m<sub>n</sub> (mm)</label><input type="number" id="h-mn" value="4" min="0.5" max="50" step="0.5" oninput="calcHelical()"></div>
+      <div class="field"><label>Helix angle ψ (°)</label><input type="number" id="h-psi" value="25" min="5" max="45" oninput="calcHelical()"></div>
+      <div class="field"><label>Face width b (mm)</label><input type="number" id="h-b" value="40" min="5" max="400" oninput="calcHelical()"></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>S<sub>ut</sub> (N/mm²)</label><input type="number" id="h-sut" value="600" min="100" max="2000" oninput="calcHelical()"></div>
+      <div class="field"><label>FOS</label><input type="number" id="h-fos" value="2" min="1" max="10" step="0.1" oninput="calcHelical()"></div>
+      <div class="field"><label>Service factor C<sub>s</sub></label><input type="number" id="h-cs" value="1.5" min="1" max="5" step="0.1" oninput="calcHelical()"></div>
+    </div>
+    <hr class="divider">
+    <div class="step-row">
+      <div class="step-card"><div class="step-label">Transverse module m<sub>t</sub></div><div class="step-val" id="h-mt">4.41 mm</div></div>
+      <div class="step-card"><div class="step-label">Pinion pitch dia. d<sub>p</sub></div><div class="step-val" id="h-dp">88.2 mm</div></div>
+      <div class="step-card"><div class="step-label">Pitch-line velocity v</div><div class="step-val" id="h-v">3.33 m/s</div></div>
+      <div class="step-card"><div class="step-label">Velocity factor C<sub>v</sub></div><div class="step-val" id="h-cv">0.47</div></div>
+    </div>
+    <div class="step-row">
+      <div class="step-card"><div class="step-label">Virtual teeth Z′<sub>p</sub></div><div class="step-val" id="h-zpv">27</div></div>
+      <div class="step-card"><div class="step-label">Lewis Y<sub>p</sub> (pinion)</div><div class="step-val" id="h-yp">0.35</div></div>
+      <div class="step-card"><div class="step-label">σ<sub>b,allow</sub></div><div class="step-val" id="h-sba">100 N/mm²</div></div>
+      <div class="step-card"><div class="step-label">σ<sub>b,eff</sub></div><div class="step-val" id="h-sbe">47 N/mm²</div></div>
+    </div>
+    <div class="step-row">
+      <div class="step-card"><div class="step-label">W<sub>t</sub> beam strength</div><div class="step-val" id="h-wt">2630 N</div></div>
+      <div class="step-card"><div class="step-label">W<sub>t,eff</sub> (after C<sub>s</sub>)</div><div class="step-val" id="h-wte">1753 N</div></div>
+    </div>
+    <div class="result-grid">
+      <div class="metric"><div class="label">Max power P<sub>max</sub></div><div class="value" id="h-pmax">5.83<span class="unit"> kW</span></div></div>
+      <div class="metric"><div class="label">Gear ratio</div><div class="value" id="h-gr">5.0<span class="unit">: 1</span></div></div>
+      <div class="metric"><div class="label">Governs</div><div class="value" style="font-size:14px;">Pinion (bending)</div></div>
+    </div>
+    <p class="note">Lewis factor Y<sub>p</sub> is interpolated from 20° full-depth charts using virtual tooth count Z′<sub>p</sub>.</p>
+  </div>
+</div>
+
+<script>
+function switchTab(id) {
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.toggle('active', ['worm','planet','helical'][i]===id));
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-'+id).classList.add('active');
+}
+
+function calcWorm() {
+  const ns = parseFloat(document.getElementById('w-ns').value)||2;
+  const tw = parseFloat(document.getElementById('w-tw').value)||20;
+  const gr = tw/ns;
+  document.getElementById('w-gr').innerHTML = gr.toFixed(2)+'<span class="unit">: 1</span>';
+  document.getElementById('w-turns').textContent = gr.toFixed(2);
+  document.getElementById('w-torque').textContent = gr.toFixed(2)+'×';
+  document.getElementById('w-label-in').textContent = 'ns = '+ns+' starts';
+  document.getElementById('w-label-out').textContent = 'Tw = '+tw+' teeth';
+  document.getElementById('w-gr-vis').textContent = gr.toFixed(1)+' : 1';
+}
+
+let planetMode = 'a';
+function setPlanetMode(m, btn) {
+  planetMode = m;
+  document.querySelectorAll('.planet-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  calcPlanet();
+}
+
+function calcPlanet() {
+  const ts = parseFloat(document.getElementById('p-ts').value)||15;
+  const tp = parseFloat(document.getElementById('p-tp').value)||30;
+  const tr = parseFloat(document.getElementById('p-tr').value)||75;
+  const check = document.getElementById('p-mesh-check');
+  if (Math.abs(tr - ts - 2*tp) > 0.5) {
+    check.textContent = '⚠ Mesh condition TR = TS + 2×TP not met (expected TR = '+(ts+2*tp)+')';
+  } else {
+    check.textContent = '';
+  }
+  const k = ts/tr;
+  document.getElementById('p-ratio-sub').textContent = '= −'+ts+'/'+tr+' = −'+k.toFixed(4);
+  document.getElementById('p-willis').textContent = '(ωR−ωC)/(ωS−ωC) = −'+ts+'/'+tr;
+
+  let gr, dir, cfg;
+  if (planetMode === 'a') {
+    gr = (ts+tr)/ts;
+    dir = 'Same direction';
+    cfg = 'Input: Sun · Output: Carrier · Ring fixed (ωR = 0)';
+  } else if (planetMode === 'b') {
+    gr = (ts+tr)/tr;
+    dir = 'Same direction';
+    cfg = 'Input: Ring · Output: Carrier · Sun fixed (ωS = 0)';
+  } else {
+    gr = tr/ts;
+    dir = 'Opposite direction';
+    cfg = 'Input: Sun · Output: Ring · Carrier fixed (ωC = 0)';
+  }
+  document.getElementById('p-config-label').textContent = cfg;
+  document.getElementById('p-gr').innerHTML = gr.toFixed(3)+'<span class="unit">: 1</span>';
+  document.getElementById('p-dir').textContent = dir;
+  document.getElementById('p-torque').textContent = gr.toFixed(3)+'×';
+  const notes = {
+    a: 'Sun and carrier rotate in the same direction. Most common configuration for high reduction.',
+    b: 'Very mild reduction (~1.2:1 for default values). Ring and carrier rotate together.',
+    c: 'Sun and ring rotate in opposite directions. Used when output reversal is needed.'
+  };
+  document.getElementById('p-note').textContent = notes[planetMode];
+}
+
+function lewisY(zp) {
+  const data = [[12,0.245],[14,0.276],[17,0.303],[19,0.314],[21,0.322],[26,0.339],[35,0.360],[55,0.390],[135,0.440],[175,0.462],[300,0.485]];
+  if (zp <= data[0][0]) return data[0][1];
+  if (zp >= data[data.length-1][0]) return data[data.length-1][1];
+  for (let i=1;i<data.length;i++) {
+    if (zp <= data[i][0]) {
+      const t = (zp-data[i-1][0])/(data[i][0]-data[i-1][0]);
+      return data[i-1][1]+t*(data[i][1]-data[i-1][1]);
+    }
+  }
+  return 0.35;
+}
+
+function calcHelical() {
+  const zp  = parseFloat(document.getElementById('h-zp').value)||20;
+  const zg  = parseFloat(document.getElementById('h-zg').value)||100;
+  const np  = parseFloat(document.getElementById('h-np').value)||720;
+  const mn  = parseFloat(document.getElementById('h-mn').value)||4;
+  const psi = parseFloat(document.getElementById('h-psi').value)||25;
+  const b   = parseFloat(document.getElementById('h-b').value)||40;
+  const sut = parseFloat(document.getElementById('h-sut').value)||600;
+  const fos = parseFloat(document.getElementById('h-fos').value)||2;
+  const cs  = parseFloat(document.getElementById('h-cs').value)||1.5;
+
+  const psiR = psi*Math.PI/180;
+  const mt   = mn/Math.cos(psiR);
+  const dp   = mt*zp;
+  const v    = Math.PI*dp/1000*np/60;
+  const cv   = 3/(3+v);
+  const zpv  = zp/Math.pow(Math.cos(psiR),3);
+  const yp   = lewisY(zpv);
+  const sba  = (sut/3)/fos;
+  const sbe  = sba*cv;
+  const wt   = sbe*b*mn*yp;
+  const wte  = wt/cs;
+  const pmax = wte*v/1000;
+
+  document.getElementById('h-mt').textContent  = mt.toFixed(2)+' mm';
+  document.getElementById('h-dp').textContent  = dp.toFixed(1)+' mm';
+  document.getElementById('h-v').textContent   = v.toFixed(2)+' m/s';
+  document.getElementById('h-cv').textContent  = cv.toFixed(3);
+  document.getElementById('h-zpv').textContent = zpv.toFixed(0);
+  document.getElementById('h-yp').textContent  = yp.toFixed(3);
+  document.getElementById('h-sba').textContent = sba.toFixed(1)+' N/mm²';
+  document.getElementById('h-sbe').textContent = sbe.toFixed(1)+' N/mm²';
+  document.getElementById('h-wt').textContent  = Math.round(wt)+' N';
+  document.getElementById('h-wte').textContent = Math.round(wte)+' N';
+  document.getElementById('h-pmax').innerHTML  = pmax.toFixed(2)+'<span class="unit"> kW</span>';
+  document.getElementById('h-gr').innerHTML    = (zg/zp).toFixed(1)+'<span class="unit">: 1</span>';
+}
+
+calcWorm(); calcPlanet(); calcHelical();
+</script>
+</body>
+</html>
