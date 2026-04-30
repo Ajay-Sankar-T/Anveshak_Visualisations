@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Q2 — Rover Drive Dynamics</title>
+<style>
+  :root {
+    --bg: #0d1117; --panel: #161b22; --border: #30363d;
+    --teal: #1D9E75; --amber: #EF9F27; --coral: #D85A30;
+    --purple: #7F77DD; --blue: #378ADD; --text: #e6edf3;
+    --muted: #8b949e; --green: #3fb950; --red: #f85149;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Courier New', monospace; min-height: 100vh; }
+
+  .header { padding: 20px 24px 12px; border-bottom: 1px solid var(--border); }
+  .header h1 { font-size: 18px; font-weight: 700; color: var(--amber); letter-spacing: 1px; }
+  .header p  { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+  .tabs { display: flex; border-bottom: 1px solid var(--border); }
+  .tab  { padding: 12px 28px; font-size: 13px; cursor: pointer; border-bottom: 2px solid transparent;
+           color: var(--muted); transition: all .2s; letter-spacing:.5px; }
+  .tab.active { color: var(--amber); border-bottom-color: var(--amber); }
+  .tab:hover:not(.active) { color: var(--text); }
+
+  .panel { display: none; padding: 20px 24px; }
+  .panel.active { display: flex; gap: 20px; flex-wrap: wrap; }
+
+  .canvas-wrap { position: relative; flex: 0 0 auto; }
+  canvas { border: 1px solid var(--border); border-radius: 8px; background: var(--panel); display: block; }
+
+  .controls { flex: 1; min-width: 260px; }
+  .ctrl-section { margin-bottom: 20px; }
+  .ctrl-title { font-size: 11px; color: var(--amber); letter-spacing: 1px; text-transform: uppercase;
+                 margin-bottom: 10px; padding-bottom: 4px; border-bottom: 1px solid var(--border); }
+
+  .slider-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .slider-row label { font-size: 11px; color: var(--muted); width: 120px; flex-shrink: 0; }
+  .slider-row input[type=range] { flex: 1; accent-color: var(--amber); cursor: pointer; }
+  .slider-val { font-size: 11px; color: var(--text); width: 56px; text-align: right; flex-shrink: 0; }
+
+  .result-box { background: #0d1117; border: 1px solid var(--border); border-radius: 6px;
+                 padding: 12px 14px; margin-top: 10px; }
+  .result-row { display: flex; justify-content: space-between; align-items: baseline;
+                 margin-bottom: 6px; font-size: 12px; }
+  .result-row:last-child { margin-bottom: 0; }
+  .result-label { color: var(--muted); }
+  .result-val   { font-weight: 700; font-size: 13px; }
+
+  .formula-box { background: #0d1117; border-left: 3px solid var(--amber);
+                  padding: 10px 14px; border-radius: 0 6px 6px 0; margin-top: 10px; font-size: 11px;
+                  color: var(--muted); line-height: 1.7; }
+  .formula-box span { color: var(--text); font-weight: 600; }
+
+  .legend { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+  .leg-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); }
+  .leg-dot  { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+  .leg-line { width: 20px; height: 3px; flex-shrink: 0; }
+
+  .anim-btn { padding: 8px 20px; background: var(--panel); border: 1px solid var(--border);
+               border-radius: 6px; color: var(--text); cursor: pointer; font-size: 12px;
+               font-family: inherit; letter-spacing: .5px; transition: all .2s; margin-right: 8px; }
+  .anim-btn:hover { border-color: var(--amber); color: var(--amber); }
+  .anim-btn.active { background: var(--amber); color: #000; border-color: var(--amber); }
+
+  .warn { color: var(--red); font-size: 11px; margin-top: 6px; font-weight: 600; }
+  .safe { color: var(--green); font-size: 11px; margin-top: 6px; font-weight: 600; }
+
+  .chart-wrap { margin-top: 16px; }
+  .chart-title { font-size: 11px; color: var(--muted); margin-bottom: 6px; letter-spacing:.5px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Q2 — ROVER DRIVE DYNAMICS</h1>
+  <p>2.1 Skid-steer rotation in place &nbsp;|&nbsp; 2.2 Circular arc turning with load transfer</p>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab(0)">2.1 &nbsp;Rotation in Place</div>
+  <div class="tab"        onclick="switchTab(1)">2.2 &nbsp;Circular Arc Turning</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- PANEL 2.1                                                          -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="panel active" id="panel0">
+  <div class="canvas-wrap">
+    <canvas id="c21" width="440" height="440"></canvas>
+    <div class="legend">
+      <div class="leg-item"><div class="leg-line" style="background:var(--coral)"></div>Friction force</div>
+      <div class="leg-item"><div class="leg-line" style="background:var(--teal);border-top:2px dashed var(--teal);height:0"></div><span style="margin-left:4px">Moment arm</span></div>
+      <div class="leg-item"><div class="leg-dot" style="background:var(--amber)"></div>Wheel</div>
+      <div class="leg-item"><div class="leg-dot" style="background:var(--purple)"></div>Centre of rotation</div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="ctrl-section">
+      <div class="ctrl-title">Parameters</div>
+      <div class="slider-row">
+        <label>Mass m (kg)</label>
+        <input type="range" id="s21_m" min="10" max="200" value="50" oninput="upd21()">
+        <div class="slider-val" id="v21_m">50</div>
+      </div>
+      <div class="slider-row">
+        <label>Friction μ</label>
+        <input type="range" id="s21_mu" min="0.1" max="1.0" step="0.01" value="0.4" oninput="upd21()">
+        <div class="slider-val" id="v21_mu">0.40</div>
+      </div>
+      <div class="slider-row">
+        <label>Track width W (m)</label>
+        <input type="range" id="s21_W" min="0.2" max="1.5" step="0.01" value="0.6" oninput="upd21()">
+        <div class="slider-val" id="v21_W">0.60</div>
+      </div>
+      <div class="slider-row">
+        <label>Wheelbase L (m)</label>
+        <input type="range" id="s21_L" min="0.2" max="1.5" step="0.01" value="0.8" oninput="upd21()">
+        <div class="slider-val" id="v21_L">0.80</div>
+      </div>
+      <div class="slider-row">
+        <label>Wheel radius r (m)</label>
+        <input type="range" id="s21_r" min="0.05" max="0.3" step="0.01" value="0.12" oninput="upd21()">
+        <div class="slider-val" id="v21_r">0.12</div>
+      </div>
+    </div>
+
+    <div class="ctrl-section">
+      <div class="ctrl-title">Animation</div>
+      <button class="anim-btn active" id="btn21" onclick="toggle21()">&#9646;&#9646; Pause</button>
+    </div>
+
+    <div class="result-box">
+      <div class="result-row">
+        <span class="result-label">Normal force / wheel</span>
+        <span class="result-val" id="r21_N" style="color:var(--blue)">—</span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">Friction force / wheel</span>
+        <span class="result-val" id="r21_F" style="color:var(--coral)">—</span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">Distance to wheel d</span>
+        <span class="result-val" id="r21_d" style="color:var(--teal)">—</span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">Resistive torque τ_res</span>
+        <span class="result-val" id="r21_tres" style="color:var(--muted)">—</span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">Drive moment arm W/2</span>
+        <span class="result-val" id="r21_arm" style="color:var(--muted)">—</span>
+      </div>
+      <div class="result-row" style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
+        <span class="result-label" style="color:var(--text);font-weight:600">Min torque / wheel</span>
+        <span class="result-val" id="r21_tau" style="color:var(--amber);font-size:16px">—</span>
+      </div>
+    </div>
+
+    <div class="formula-box">
+      <span>τ_min = μmgr√(W²+L²) / (4W)</span><br>
+      ↑ Wider W → smaller τ (bigger drive arm)<br>
+      ↑ Longer L → bigger τ (wheels further from centre)<br>
+      ↑ Higher μ, m → bigger τ (more friction to overcome)
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<!-- PANEL 2.2                                                          -->
+<!-- ═══════════════════════════════════════════════════════════════════ -->
+<div class="panel" id="panel1">
+  <div class="canvas-wrap">
+    <canvas id="c22" width="440" height="440"></canvas>
+    <div class="legend">
+      <div class="leg-item"><div class="leg-dot" style="background:var(--coral)"></div>Inner wheels (slip first)</div>
+      <div class="leg-item"><div class="leg-dot" style="background:var(--teal)"></div>Outer wheels</div>
+      <div class="leg-item"><div class="leg-line" style="background:var(--amber)"></div>Centripetal force</div>
+    </div>
+    <div class="chart-wrap">
+      <div class="chart-title">v_max vs Turning radius R</div>
+      <canvas id="chart22" width="440" height="140" style="border:1px solid var(--border);border-radius:6px;background:var(--panel)"></canvas>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div class="ctrl-section">
+      <div class="ctrl-title">Parameters</div>
+      <div class="slider-row">
+        <label>Mass m (kg)</label>
+        <input type="range" id="s22_m" min="10" max="200" value="50" oninput="upd22()">
+        <div class="slider-val" id="v22_m">50</div>
+      </div>
+      <div class="slider-row">
+        <label>Friction μ</label>
+        <input type="range" id="s22_mu" min="0.1" max="1.0" step="0.01" value="0.4" oninput="upd22()">
+        <div class="slider-val" id="v22_mu">0.40</div>
+      </div>
+      <div class="slider-row">
+        <label>Track width W (m)</label>
+        <input type="range" id="s22_W" min="0.2" max="1.5" step="0.01" value="0.6" oninput="upd22()">
+        <div class="slider-val" id="v22_W">0.60</div>
+      </div>
+      <div class="slider-row">
+        <label>COM height h (m)</label>
+        <input type="range" id="s22_h" min="0.05" max="0.8" step="0.01" value="0.25" oninput="upd22()">
+        <div class="slider-val" id="v22_h">0.25</div>
+      </div>
+      <div class="slider-row">
+        <label>Turn radius R (m)</label>
+        <input type="range" id="s22_R" min="0.5" max="10" step="0.1" value="3" oninput="upd22()">
+        <div class="slider-val" id="v22_R">3.0</div>
+      </div>
+      <div class="slider-row">
+        <label>Current speed v (m/s)</label>
+        <input type="range" id="s22_v" min="0" max="8" step="0.05" value="1.5" oninput="upd22()">
+        <div class="slider-val" id="v22_v">1.50</div>
+      </div>
+    </div>
+
+    <div class="ctrl-section">
+      <div class="ctrl-title">Animation</div>
+      <button class="anim-btn active" id="btn22" onclick="toggle22()">&#9646;&#9646; Pause</button>
+    </div>
+
+    <div class="result-box">
+      <div class="result-row">
+        <span class="result-label">Centripetal accel v²/R</span>
+        <span class="result-val" id="r22_ac" style="color:var(--amber)">—</span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">Load transfer ΔN</span>
+        <span class="result-val" id="r22_dN" style="color:var(--purple)">—</span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">Inner wheel N_i</span>
+        <span class="result-val" id="r22_Ni" style="color:var(--coral)">—</span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">Outer wheel N_o</span>
+        <span class="result-val" id="r22_No" style="color:var(--teal)">—</span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">Inner friction limit</span>
+        <span class="result-val" id="r22_Fi" style="color:var(--coral)">—</span>
+      </div>
+      <div class="result-row">
+        <span class="result-label">Centripetal demand/wheel</span>
+        <span class="result-val" id="r22_Fc" style="color:var(--amber)">—</span>
+      </div>
+      <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
+        <div class="result-row">
+          <span class="result-label" style="color:var(--text);font-weight:600">v_max</span>
+          <span class="result-val" id="r22_vmax" style="color:var(--amber);font-size:16px">—</span>
+        </div>
+        <div id="r22_status" class="safe">✓ Safe — within slip limit</div>
+      </div>
+    </div>
+
+    <div class="formula-box">
+      <span>v_max = √(μgR / (1 + 2μh/W))</span><br>
+      ↑ Wider W → higher v_max (less load transfer)<br>
+      ↑ Lower h → higher v_max (less load transfer)<br>
+      ↑ Larger R → higher v_max (gentler turn)<br>
+      Inner wheels lose normal load → slip first
+    </div>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────────
+// TAB SWITCHING
+// ─────────────────────────────────────────────────
+function switchTab(i) {
+  document.querySelectorAll('.tab').forEach((t,j)=>t.classList.toggle('active',i===j));
+  document.querySelectorAll('.panel').forEach((p,j)=>p.classList.toggle('active',i===j));
+}
+
+// ─────────────────────────────────────────────────
+// HELPERS
+// ─────────────────────────────────────────────────
+function arrow(ctx, x1,y1, x2,y2, color, lw=2, headLen=10) {
+  const dx=x2-x1, dy=y2-y1, len=Math.hypot(dx,dy);
+  if(len<2) return;
+  const ux=dx/len, uy=dy/len;
+  ctx.save(); ctx.strokeStyle=color; ctx.fillStyle=color; ctx.lineWidth=lw;
+  ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x2,y2);
+  ctx.lineTo(x2-headLen*ux+headLen*0.4*uy, y2-headLen*uy-headLen*0.4*ux);
+  ctx.lineTo(x2-headLen*ux-headLen*0.4*uy, y2-headLen*uy+headLen*0.4*ux);
+  ctx.closePath(); ctx.fill(); ctx.restore();
+}
+function dashedLine(ctx,x1,y1,x2,y2,color,lw=1) {
+  ctx.save(); ctx.strokeStyle=color; ctx.lineWidth=lw;
+  ctx.setLineDash([6,4]); ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2);
+  ctx.stroke(); ctx.restore();
+}
+function circle(ctx,x,y,r,fill,stroke,lw=1.5) {
+  ctx.save(); ctx.fillStyle=fill; ctx.strokeStyle=stroke; ctx.lineWidth=lw;
+  ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill(); ctx.stroke(); ctx.restore();
+}
+function label(ctx,txt,x,y,color='#8b949e',size=11,align='left') {
+  ctx.save(); ctx.fillStyle=color; ctx.font=`${size}px Courier New`;
+  ctx.textAlign=align; ctx.fillText(txt,x,y); ctx.restore();
+}
+
+// ─────────────────────────────────────────────────
+// 2.1 — SKID STEER
+// ─────────────────────────────────────────────────
+const c21 = document.getElementById('c21');
+const ctx21 = c21.getContext('2d');
+let ang21=0, run21=true, raf21;
+
+function getP21() {
+  return {
+    m: +document.getElementById('s21_m').value,
+    mu: +document.getElementById('s21_mu').value,
+    W: +document.getElementById('s21_W').value,
+    L: +document.getElementById('s21_L').value,
+    r: +document.getElementById('s21_r').value,
+    g: 10
+  };
+}
+
+function upd21() {
+  const p=getP21();
+  document.getElementById('v21_m').textContent=p.m;
+  document.getElementById('v21_mu').textContent=p.mu.toFixed(2);
+  document.getElementById('v21_W').textContent=p.W.toFixed(2);
+  document.getElementById('v21_L').textContent=p.L.toFixed(2);
+  document.getElementById('v21_r').textContent=p.r.toFixed(2);
+  const N=p.m*p.g/4;
+  const F=p.mu*N;
+  const d=0.5*Math.sqrt(p.W**2+p.L**2);
+  const tau_res=4*F*d;
+  const arm=p.W/2;
+  const tau_min=tau_res/(4*arm/p.r); // = mu*m*g*r*sqrt(W²+L²)/(4W)
+  const tau_formula=p.mu*p.m*p.g*p.r*Math.sqrt(p.W**2+p.L**2)/(4*p.W);
+  document.getElementById('r21_N').textContent=N.toFixed(1)+' N';
+  document.getElementById('r21_F').textContent=F.toFixed(1)+' N';
+  document.getElementById('r21_d').textContent=d.toFixed(3)+' m';
+  document.getElementById('r21_tres').textContent=tau_res.toFixed(2)+' N·m';
+  document.getElementById('r21_arm').textContent=arm.toFixed(3)+' m';
+  document.getElementById('r21_tau').textContent=tau_formula.toFixed(3)+' N·m';
+}
+
+function draw21() {
+  const p=getP21();
+  const cw=c21.width, ch=c21.height, cx=cw/2, cy=ch/2;
+  ctx21.clearRect(0,0,cw,ch);
+
+  // Scale so rover fits nicely
+  const maxDim=Math.max(p.W,p.L);
+  const scale=Math.min(140,cw*0.28)/maxDim;
+  const wPx=p.W*scale, lPx=p.L*scale;
+
+  // Rotate the whole view by ang21
+  ctx21.save();
+  ctx21.translate(cx,cy);
+  ctx21.rotate(ang21);
+
+  // Chassis body
+  ctx21.fillStyle='#1e2a38';
+  ctx21.strokeStyle='#30363d';
+  ctx21.lineWidth=1.5;
+  ctx21.beginPath();
+  ctx21.roundRect(-wPx/2,-lPx/2,wPx,lPx,6);
+  ctx21.fill(); ctx21.stroke();
+
+  // Wheel positions (corners)
+  const wx=wPx/2, wy=lPx/2;
+  const wheels=[[-wx,-wy],[wx,-wy],[-wx,wy],[wx,wy]];
+  const wheelR=Math.max(10,p.r*scale*0.7);
+
+  wheels.forEach(([wpx,wpy],i)=>{
+    // Wheel
+    ctx21.fillStyle='#EF9F27';
+    ctx21.strokeStyle='#BA7517';
+    ctx21.lineWidth=2;
+    ctx21.beginPath(); ctx21.arc(wpx,wpy,wheelR,0,Math.PI*2);
+    ctx21.fill(); ctx21.stroke();
+
+    // Moment arm (dashed line from centre to wheel)
+    ctx21.save(); ctx21.strokeStyle='#1D9E7788'; ctx21.lineWidth=1;
+    ctx21.setLineDash([5,4]);
+    ctx21.beginPath(); ctx21.moveTo(0,0); ctx21.lineTo(wpx,wpy); ctx21.stroke();
+    ctx21.restore();
+
+    // Friction force arrow (tangential to rotation = perpendicular to arm, opposing CW)
+    // arm direction: (wpx,wpy)/|r|. Tangent (CW opposing = negative perp): (wpy,-wpx)/|r|
+    const armLen=Math.hypot(wpx,wpy);
+    const tx=wpy/armLen, ty=-wpx/armLen; // tangent direction opposing CW rotation
+    const N=p.m*p.g/4, F=p.mu*N;
+    const fScale=Math.min(50,F*scale*0.8);
+    const fx=wpx+tx*fScale, fy=wpy+ty*fScale;
+    arrow(ctx21,wpx,wpy,fx,fy,'#D85A30',2,8);
+  });
+
+  // Centre of rotation
+  ctx21.fillStyle='#7F77DD';
+  ctx21.strokeStyle='#534AB7';
+  ctx21.lineWidth=2;
+  ctx21.beginPath(); ctx21.arc(0,0,7,0,Math.PI*2); ctx21.fill(); ctx21.stroke();
+
+  // Rotation direction arc
+  ctx21.save(); ctx21.strokeStyle='#EF9F2788'; ctx21.lineWidth=2;
+  ctx21.setLineDash([4,4]);
+  ctx21.beginPath(); ctx21.arc(0,0,Math.max(wPx,lPx)*0.7,0,Math.PI*1.7);
+  ctx21.stroke(); ctx21.restore();
+
+  ctx21.restore(); // undo rotation
+
+  // Labels (fixed, outside rotation)
+  label(ctx21,'W ↔',cx-wPx/2,cy+lPx/2+scale*p.L*0.15+20,'#8b949e',10,'center');
+  label(ctx21,'L ↕',cx+wPx/2+14,cy,'#8b949e',10,'left');
+  label(ctx21,'Centre of rotation',cx,cy-lPx/2-scale*p.L*0.15-20,'#7F77DD',10,'center');
+}
+
+function frame21() {
+  if(run21) ang21 -= 0.012;
+  draw21(); upd21();
+  raf21=requestAnimationFrame(frame21);
+}
+
+function toggle21() {
+  run21=!run21;
+  const b=document.getElementById('btn21');
+  b.textContent=run21?'⏸ Pause':'▶ Play';
+  b.classList.toggle('active',run21);
+}
+
+// ─────────────────────────────────────────────────
+// 2.2 — CIRCULAR ARC TURNING
+// ─────────────────────────────────────────────────
+const c22=document.getElementById('c22');
+const ctx22=c22.getContext('2d');
+const chartCtx=document.getElementById('chart22').getContext('2d');
+let ang22=0, run22=true, raf22;
+
+function getP22() {
+  return {
+    m: +document.getElementById('s22_m').value,
+    mu: +document.getElementById('s22_mu').value,
+    W: +document.getElementById('s22_W').value,
+    h: +document.getElementById('s22_h').value,
+    R: +document.getElementById('s22_R').value,
+    v: +document.getElementById('s22_v').value,
+    g: 10
+  };
+}
+
+function vmax22(p) {
+  return Math.sqrt(p.mu*p.g*p.R / (1 + 2*p.mu*p.h/p.W));
+}
+
+function upd22() {
+  const p=getP22();
+  document.getElementById('v22_m').textContent=p.m;
+  document.getElementById('v22_mu').textContent=p.mu.toFixed(2);
+  document.getElementById('v22_W').textContent=p.W.toFixed(2);
+  document.getElementById('v22_h').textContent=p.h.toFixed(2);
+  document.getElementById('v22_R').textContent=p.R.toFixed(1);
+  document.getElementById('v22_v').textContent=p.v.toFixed(2);
+
+  const ac=p.v**2/p.R;
+  const dN=p.m*ac*p.h/(2*p.W); // load transfer per wheel pair
+  const N0=p.m*p.g/4;
+  const Ni=N0-dN; // inner wheel normal force
+  const No=N0+dN; // outer wheel normal force
+  const Fi=p.mu*Ni; // inner friction capacity
+  const Fc=p.m*ac/4; // centripetal demand per wheel (equal share)
+  const vm=vmax22(p);
+  const safe=p.v<=vm && Ni>=0;
+
+  document.getElementById('r22_ac').textContent=ac.toFixed(3)+' m/s²';
+  document.getElementById('r22_dN').textContent=dN.toFixed(1)+' N';
+  document.getElementById('r22_Ni').textContent=Ni.toFixed(1)+' N';
+  document.getElementById('r22_No').textContent=No.toFixed(1)+' N';
+  document.getElementById('r22_Fi').textContent=Fi.toFixed(1)+' N';
+  document.getElementById('r22_Fc').textContent=Fc.toFixed(1)+' N';
+  document.getElementById('r22_vmax').textContent=vm.toFixed(3)+' m/s';
+
+  const st=document.getElementById('r22_status');
+  if(Ni<0) { st.textContent='⚠ Inner wheel lifted off!'; st.className='warn'; }
+  else if(!safe) { st.textContent='✗ Lateral slip occurring!'; st.className='warn'; }
+  else { st.textContent='✓ Safe — within slip limit'; st.className='safe'; }
+
+  drawChart22(p, vm);
+}
+
+function draw22() {
+  const p=getP22();
+  const cw=c22.width, ch=c22.height, cx=cw/2, cy=ch/2;
+  ctx22.clearRect(0,0,cw,ch);
+
+  // Arc path (top view)
+  const R=p.R, W=p.W;
+  const arcScale=Math.min(130, (cw*0.4)/R);
+  const Rpx=R*arcScale, Wpx=W*arcScale;
+  const arcCx=cx+Rpx*0.5; // arc centre to the right
+
+  // Draw the circular arc (path of rover)
+  ctx22.save();
+  ctx22.strokeStyle='#30363d';
+  ctx22.lineWidth=1; ctx22.setLineDash([4,4]);
+  ctx22.beginPath(); ctx22.arc(arcCx,cy,Rpx,Math.PI*0.5,Math.PI*1.5,false);
+  ctx22.stroke();
+  // Inner and outer tracks
+  ctx22.strokeStyle='#D85A3044';
+  ctx22.beginPath(); ctx22.arc(arcCx,cy,Rpx-Wpx/2,Math.PI*0.5,Math.PI*1.5,false); ctx22.stroke();
+  ctx22.strokeStyle='#1D9E7544';
+  ctx22.beginPath(); ctx22.arc(arcCx,cy,Rpx+Wpx/2,Math.PI*0.5,Math.PI*1.5,false); ctx22.stroke();
+  ctx22.restore();
+
+  // Rover body position (on the arc, rotating)
+  const roverAng=ang22;
+  const rCx=arcCx+Rpx*Math.cos(Math.PI+roverAng);
+  const rCy=cy+Rpx*Math.sin(Math.PI+roverAng);
+  // Radial direction (rover → arc centre) in world
+  const radX = arcCx - rCx, radY = cy - rCy;
+  const radLen = Math.hypot(radX, radY);
+  const inX = radX/radLen, inY = radY/radLen;   // unit vector toward arc centre = INNER direction
+  // Forward = tangent = perpendicular to inward, in travel direction (CCW orbit → fwd = rotate inward by -90°)
+  // In canvas (y-down), rotating (ix,iy) by -90° = (iy, -ix)
+  const fwX = inY, fwY = -inX;                  // unit forward vector in world
+
+  ctx22.save();
+  ctx22.translate(rCx, rCy);
+
+  // Draw chassis: length bodyL along forward, width bodyW across
+  // corners: ±fwd*bodyL/2 ± right*bodyW/2, where right = -inward (outward)
+  const bodyW=Wpx, bodyL=Math.min(60,Rpx*0.4);
+  const ouX = -inX, ouY = -inY;  // outward unit vector
+  const hL = bodyL/2, hW = bodyW/2;
+  const corners4 = [
+    [ fwX*hL + ouX*hW,  fwY*hL + ouY*hW ],
+    [ fwX*hL - ouX*hW,  fwY*hL - ouY*hW ],
+    [-fwX*hL - ouX*hW, -fwY*hL - ouY*hW ],
+    [-fwX*hL + ouX*hW, -fwY*hL + ouY*hW ],
+  ];
+  ctx22.fillStyle='#1e2a38'; ctx22.strokeStyle='#30363d'; ctx22.lineWidth=1.5;
+  ctx22.beginPath();
+  ctx22.moveTo(corners4[0][0], corners4[0][1]);
+  corners4.slice(1).forEach(([x,y])=>ctx22.lineTo(x,y));
+  ctx22.closePath(); ctx22.fill(); ctx22.stroke();
+
+  // Forward arrow on chassis
+  ctx22.strokeStyle='#30363d44'; ctx22.lineWidth=1;
+  ctx22.beginPath(); ctx22.moveTo(0,0); ctx22.lineTo(fwX*hL*0.8, fwY*hL*0.8); ctx22.stroke();
+
+  // Compute load-dependent wheel sizes
+  const ac=p.v**2/p.R;
+  const dN=p.m*ac*p.h/(2*p.W);
+  const N0=p.m*p.g/4;
+  const Ni=Math.max(0,N0-dN), No=N0+dN;
+  const riSz=Math.max(5,12*(Ni/N0));
+  const roSz=Math.max(5,12*(No/N0));
+  const vm=vmax22(p);
+  const innerColor=p.v>vm?'#F85149':'#D85A30';
+  const outerColor='#1D9E75';
+  const wheelW=Math.max(5,bodyW*0.16);
+  const fwAng=Math.atan2(fwY,fwX); // world angle of forward direction
+
+  // 4 wheels: inner = toward arc centre (inX,inY side), outer = away
+  // front/rear = ±forward. All coords relative to rover centre (already translated).
+  const wDefs=[
+    {wx: inX*hW + fwX*hL*0.7, wy: inY*hW + fwY*hL*0.7, inner:true },
+    {wx: inX*hW - fwX*hL*0.7, wy: inY*hW - fwY*hL*0.7, inner:true },
+    {wx:-inX*hW + fwX*hL*0.7, wy:-inY*hW + fwY*hL*0.7, inner:false},
+    {wx:-inX*hW - fwX*hL*0.7, wy:-inY*hW - fwY*hL*0.7, inner:false},
+  ];
+  wDefs.forEach(({wx,wy,inner})=>{
+    const sz=inner?riSz:roSz, col=inner?innerColor:outerColor;
+    ctx22.save();
+    ctx22.translate(wx,wy);
+    ctx22.rotate(fwAng); // wheel length along forward direction
+    ctx22.fillStyle=col+'99'; ctx22.strokeStyle=col; ctx22.lineWidth=2;
+    ctx22.beginPath(); ctx22.roundRect(-wheelW/2,-sz,wheelW,sz*2,2);
+    ctx22.fill(); ctx22.stroke();
+    ctx22.restore();
+  });
+
+  // Centripetal arrow toward arc centre
+  const fcScale=Math.min(35,ac*10);
+  arrow(ctx22,0,0,inX*fcScale,inY*fcScale,'#EF9F27',2,8);
+  ctx22.save();
+  ctx22.fillStyle='#EF9F27'; ctx22.font='9px Courier New'; ctx22.textAlign='center';
+  ctx22.fillText('Fc',inX*(fcScale+10),inY*(fcScale+10));
+  ctx22.restore();
+
+  ctx22.restore(); // end translate(rCx,rCy)
+
+  // World-space labels for inner/outer sides
+  const innerWx=rCx+inX*hW*2.2, innerWy=rCy+inY*hW*2.2;
+  const outerWx=rCx-inX*hW*2.2, outerWy=rCy-inY*hW*2.2;
+  label(ctx22,'inner',innerWx,innerWy-5,innerColor,10,'center');
+  label(ctx22,'(slips first)',innerWx,innerWy+7,innerColor,9,'center');
+  label(ctx22,'outer',outerWx,outerWy,outerColor,10,'center');
+  label(ctx22,'⊙ arc centre',arcCx+6,cy,'#8b949e',10,'left');
+  label(ctx22,'Wheel height ∝ normal force  |  red = inner (slips first)',cx,ch-14,'#8b949e',10,'center');
+}
+
+function drawChart22(p, vm) {
+  const ch=document.getElementById('chart22');
+  const ctx=chartCtx;
+  const cw=ch.width, ht=ch.height;
+  ctx.clearRect(0,0,cw,ht);
+
+  const pad={l:36,r:16,t:12,b:28};
+  const pw=cw-pad.l-pad.r, ph=ht-pad.t-pad.b;
+
+  // R range
+  const Rmin=0.5, Rmax=10;
+  const vmax_max=Math.sqrt(p.mu*p.g*Rmax/(1+2*p.mu*p.h/p.W));
+
+  // Axes
+  ctx.strokeStyle='#30363d'; ctx.lineWidth=1;
+  ctx.beginPath();
+  ctx.moveTo(pad.l,pad.t); ctx.lineTo(pad.l,pad.t+ph);
+  ctx.lineTo(pad.l+pw,pad.t+ph); ctx.stroke();
+
+  // Axis labels
+  label(ctx,'v_max',pad.l-4,pad.t+ph/2,'#8b949e',10,'right');
+  label(ctx,'(m/s)',pad.l-4,pad.t+ph/2+12,'#8b949e',9,'right');
+  label(ctx,'R (m)',pad.l+pw/2,pad.t+ph+22,'#8b949e',10,'center');
+  label(ctx,'0',pad.l-4,pad.t+ph+4,'#8b949e',9,'right');
+  label(ctx,Rmax.toFixed(0),pad.l+pw,pad.t+ph+12,'#8b949e',9,'center');
+  label(ctx,vmax_max.toFixed(1),pad.l-4,pad.t+6,'#8b949e',9,'right');
+
+  // Curve
+  ctx.strokeStyle='#EF9F27'; ctx.lineWidth=2; ctx.setLineDash([]);
+  ctx.beginPath();
+  for(let i=0;i<=100;i++) {
+    const R=Rmin+(Rmax-Rmin)*i/100;
+    const pp={...p,R};
+    const vm_=vmax22(pp);
+    const px=pad.l+pw*(R-Rmin)/(Rmax-Rmin);
+    const py=pad.t+ph*(1-vm_/vmax_max);
+    i===0?ctx.moveTo(px,py):ctx.lineTo(px,py);
+  }
+  ctx.stroke();
+
+  // Current point
+  const curR=p.R;
+  const curVm=vm;
+  const cpx=pad.l+pw*(curR-Rmin)/(Rmax-Rmin);
+  const cpy=pad.t+ph*(1-curVm/vmax_max);
+  circle(ctx,cpx,cpy,4,'#EF9F27','#000',1);
+
+  // Current v line
+  const curVy=pad.t+ph*(1-Math.min(p.v/vmax_max,1));
+  ctx.save(); ctx.strokeStyle=p.v>vm?'#F85149':'#3fb950';
+  ctx.lineWidth=1; ctx.setLineDash([4,3]);
+  ctx.beginPath(); ctx.moveTo(pad.l,curVy); ctx.lineTo(pad.l+pw,curVy); ctx.stroke();
+  label(ctx,`v=${p.v.toFixed(1)}`,pad.l+pw-2,curVy-3,p.v>vm?'#F85149':'#3fb950',9,'right');
+  ctx.restore();
+}
+
+function frame22() {
+  const p=getP22();
+  if(run22) ang22 += p.v/(p.R*60);
+  draw22(); upd22();
+  raf22=requestAnimationFrame(frame22);
+}
+
+function toggle22() {
+  run22=!run22;
+  const b=document.getElementById('btn22');
+  b.textContent=run22?'⏸ Pause':'▶ Play';
+  b.classList.toggle('active',run22);
+}
+
+// ─────────────────────────────────────────────────
+// INIT
+// ─────────────────────────────────────────────────
+upd21(); frame21();
+upd22(); frame22();
+</script>
+</body>
+</html>
